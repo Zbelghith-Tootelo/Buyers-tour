@@ -236,7 +236,31 @@ const state = {
   destModalTab: 'nom',
   destModalSearch: '',
   dragStopId: null,
+  dirty: false,             // unsaved edits on a tour that was already sent
 };
+
+// Any tour reachable via editingTourId already exists in state.tours, which only
+// ever holds tours that have been sent — so finding it there means "already sent".
+function markDirtyIfSent() {
+  if (state.editingTourId && state.tours.some(t => t.id === state.editingTourId)) {
+    state.dirty = true;
+  }
+}
+
+function saveDraftToTour(notify) {
+  const t = state.tours.find(x => x.id === state.editingTourId);
+  if (!t) return;
+  t.buyerId = state.draft.buyer.id;
+  t.date = state.draft.date;
+  t.time = state.draft.time;
+  t.stops = state.draft.stops;
+  state.dirty = false;
+  render();
+  showToast(
+    notify ? 'Modifications enregistrées et mise à jour envoyée aux courtiers concernés.' : 'Modifications enregistrées.',
+    'success'
+  );
+}
 
 function newDraft(buyer) {
   return { buyer, date: todayPlus(3), time: '14:00', stops: [] };
@@ -637,12 +661,31 @@ function renderBuilderScreen() {
     <div>${stopsHtml}</div>
 
 
-    <div class="footer-actions">
-      <button class="btn btn-primary" id="btn-send-tour" ${propertyCount === 0 ? 'disabled' : ''}>
-        Envoyer les demandes de visites
-      </button>
-      <button class="btn btn-danger-outline" id="btn-delete-tour">Supprimer</button>
-    </div>
+    <div class="footer-actions">${renderFooterActions(propertyCount)}</div>
+  `;
+}
+
+function renderFooterActions(propertyCount) {
+  const sentTour = state.editingTourId ? state.tours.find(t => t.id === state.editingTourId) : null;
+
+  if (sentTour && state.dirty) {
+    return `
+      <button class="btn btn-primary" id="btn-save-update">Enregistrer et envoyer une mise à jour</button>
+      <button class="btn btn-outline" id="btn-save-only">Enregistrer</button>
+      <button class="btn btn-danger-outline" id="btn-delete-tour">Supprimer ce tour et annuler les demandes de visites</button>
+    `;
+  }
+  if (sentTour) {
+    return `
+      <button class="btn btn-outline" id="btn-share-buyer">Partager avec l'acheteur</button>
+      <button class="btn btn-danger-outline" id="btn-delete-tour">Supprimer ce tour et annuler les demandes de visites</button>
+    `;
+  }
+  return `
+    <button class="btn btn-primary" id="btn-send-tour" ${propertyCount === 0 ? 'disabled' : ''}>
+      Envoyer les demandes de visites
+    </button>
+    <button class="btn btn-danger-outline" id="btn-delete-tour">Supprimer</button>
   `;
 }
 
@@ -653,7 +696,15 @@ function renderModal() {
   if (!state.modal) { root.innerHTML = ''; return; }
 
   if (state.modal.type === 'destination') { root.innerHTML = renderDestinationModal(); return; }
-  if (state.modal.type === 'confirmDeleteTour') { root.innerHTML = renderConfirmModal('Supprimer le tour', 'Cette action supprimera définitivement ce tour de visites. Cette action est irréversible.', 'btn-confirm-delete-tour'); return; }
+  if (state.modal.type === 'confirmSend') { root.innerHTML = renderConfirmSendModal(); return; }
+  if (state.modal.type === 'confirmDeleteTour') {
+    const wasSent = state.editingTourId && state.tours.some(t => t.id === state.editingTourId);
+    const body = wasSent
+      ? 'Cette action supprimera définitivement ce tour et annulera les demandes de visites déjà envoyées aux courtiers inscripteurs. Cette action est irréversible.'
+      : 'Cette action supprimera définitivement ce tour de visites. Cette action est irréversible.';
+    root.innerHTML = renderConfirmModal('Supprimer le tour', body, 'btn-confirm-delete-tour');
+    return;
+  }
   if (state.modal.type === 'editBuyer') { root.innerHTML = renderEditBuyerModal(); return; }
   if (state.modal.type === 'map') { root.innerHTML = renderMapModal(); return; }
   if (state.modal.type === 'editStop') { root.innerHTML = renderEditStopModal(); return; }
@@ -713,6 +764,22 @@ function renderEditBuyerModal() {
         <div class="modal-footer" style="display:flex;gap:10px;">
           <button class="btn btn-primary" id="btn-save-edit-buyer">Sauvegarder</button>
           <button class="btn btn-outline" id="modal-cancel">Annuler</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderConfirmSendModal() {
+  return `
+    <div class="modal-overlay" id="modal-overlay">
+      <div class="modal modal-sm">
+        <div class="modal-head"><h2>Envoyer les demandes de visites</h2><button class="modal-close" id="modal-close">${icon('x')}</button></div>
+        <div class="modal-body">
+          <p style="font-size:14.5px;color:var(--texte-secondaire);line-height:1.5;margin-top:0;margin-bottom:0;">Qui doit recevoir ce tour de visites ?</p>
+        </div>
+        <div class="modal-footer" style="display:flex;flex-direction:column;gap:10px;">
+          <button class="btn btn-primary btn-block" id="btn-send-broker-only">Envoyer au courtier uniquement</button>
+          <button class="btn btn-outline btn-block" id="btn-send-broker-buyer">Envoyer au courtier et à l'acheteur</button>
         </div>
       </div>
     </div>`;
@@ -1111,9 +1178,9 @@ function bindBuilderEvents() {
   };
 
   const dateInput = document.getElementById('builder-date');
-  if (dateInput) dateInput.onchange = () => { state.draft.date = dateInput.value; };
+  if (dateInput) dateInput.onchange = () => { state.draft.date = dateInput.value; markDirtyIfSent(); render(); };
   const timeSelect = document.getElementById('builder-time');
-  if (timeSelect) timeSelect.onchange = () => { state.draft.time = timeSelect.value; render(); };
+  if (timeSelect) timeSelect.onchange = () => { state.draft.time = timeSelect.value; markDirtyIfSent(); render(); };
 
   const openDestModal = () => { state.modal = { type: 'destination' }; state.destModalTab = 'cart'; state.destModalSearch = ''; render(); };
   const addBtn1 = document.getElementById('btn-add-destination');
@@ -1126,6 +1193,7 @@ function bindBuilderEvents() {
       .slice()
       .sort((a, b) => a.address.localeCompare(b.address));
     state.draft.stops = [...props, ...pauses];
+    markDirtyIfSent();
     render();
     showToast('Tour optimisé selon la distance estimée.', 'success');
   };
@@ -1142,26 +1210,21 @@ function bindBuilderEvents() {
   document.querySelectorAll('[data-remove-stop]').forEach(el => {
     el.onclick = () => {
       state.draft.stops = state.draft.stops.filter(s => s.id !== el.getAttribute('data-remove-stop'));
+      markDirtyIfSent();
       render();
     };
   });
 
   const sendBtn = document.getElementById('btn-send-tour');
-  if (sendBtn) sendBtn.onclick = () => {
-    if (state.editingTourId) {
-      const t = state.tours.find(x => x.id === state.editingTourId);
-      t.buyerId = state.draft.buyer.id;
-      t.date = state.draft.date;
-      t.time = state.draft.time;
-      t.stops = state.draft.stops;
-    } else {
-      state.tours.push({ id: uid(), buyerId: state.draft.buyer.id, date: state.draft.date, time: state.draft.time, stops: state.draft.stops, sentAt: Date.now() });
-    }
-    state.screen = 'list';
-    state.listTab = 'upcoming';
-    render();
-    showToast('Demandes de visites envoyées aux courtiers inscripteurs.', 'success');
-  };
+  if (sendBtn) sendBtn.onclick = () => { state.modal = { type: 'confirmSend' }; render(); };
+
+  const shareBtn = document.getElementById('btn-share-buyer');
+  if (shareBtn) shareBtn.onclick = () => showToast('Le tour a été partagé avec l\'acheteur.', 'success');
+
+  const saveUpdateBtn = document.getElementById('btn-save-update');
+  if (saveUpdateBtn) saveUpdateBtn.onclick = () => saveDraftToTour(true);
+  const saveOnlyBtn = document.getElementById('btn-save-only');
+  if (saveOnlyBtn) saveOnlyBtn.onclick = () => saveDraftToTour(false);
 
   const deleteBtn = document.getElementById('btn-delete-tour');
   if (deleteBtn) deleteBtn.onclick = () => { state.modal = { type: 'confirmDeleteTour' }; render(); };
@@ -1196,6 +1259,7 @@ function bindDragAndDrop() {
       const toIdx = stops.findIndex(s => s.id === toId);
       const [moved] = stops.splice(fromIdx, 1);
       stops.splice(toIdx, 0, moved);
+      markDirtyIfSent();
       render();
     });
   });
@@ -1217,6 +1281,29 @@ function bindModalEvents() {
   document.addEventListener('keydown', escHandler);
 
   if (state.modal.type === 'destination') bindDestinationModalEvents();
+  if (state.modal.type === 'confirmSend') {
+    const finalizeSend = (notifyBuyer) => {
+      const newId = uid();
+      state.tours.push({
+        id: newId, buyerId: state.draft.buyer.id, date: state.draft.date, time: state.draft.time,
+        stops: state.draft.stops, sentAt: Date.now(), sharedWithBuyer: notifyBuyer,
+      });
+      state.editingTourId = newId;
+      state.dirty = false;
+      state.modal = null;
+      render();
+      showToast(
+        notifyBuyer
+          ? "Demandes de visites envoyées aux courtiers inscripteurs et à l'acheteur."
+          : 'Demandes de visites envoyées aux courtiers inscripteurs.',
+        'success'
+      );
+    };
+    const brokerOnly = document.getElementById('btn-send-broker-only');
+    if (brokerOnly) brokerOnly.onclick = () => finalizeSend(false);
+    const brokerBuyer = document.getElementById('btn-send-broker-buyer');
+    if (brokerBuyer) brokerBuyer.onclick = () => finalizeSend(true);
+  }
   if (state.modal.type === 'confirmDeleteTour') {
     const btn = document.getElementById('btn-confirm-delete-tour');
     if (btn) btn.onclick = () => {
@@ -1242,6 +1329,7 @@ function bindModalEvents() {
         stop.lockedStart = minutesToLabel(r.start).replace('h', ':');
       }
       state.modal = null;
+      markDirtyIfSent();
       render();
     };
     const savePause = document.getElementById('btn-save-edit-pause');
@@ -1249,6 +1337,7 @@ function bindModalEvents() {
       const stop = state.draft.stops.find(s => s.id === state.modal.stopId);
       stop.duration = +document.getElementById('edit-pause-duration').value;
       state.modal = null;
+      markDirtyIfSent();
       render();
     };
   }
@@ -1304,6 +1393,7 @@ function bindDestinationModalEvents() {
       const prop = MLS_POOL.find(p => p.mls === mls) || mlsCart.find(p => p.mls === mls);
       if (!prop) return;
       state.draft.stops.push(makeStop(prop.address, prop.mls, { status: 'pending' }));
+      markDirtyIfSent();
       render();
     };
   });
@@ -1313,12 +1403,14 @@ function bindDestinationModalEvents() {
     const address = document.getElementById('stop-address').value.trim();
     if (!address) return;
     state.draft.stops.push({ id: uid(), type: 'property', address: name ? `${name} — ${address}` : address, mls: null, status: 'pending', duration: 20, locked: false });
+    markDirtyIfSent();
     closeModal();
   };
   const addPause = document.getElementById('btn-add-pause');
   if (addPause) addPause.onclick = () => {
     const duration = +document.getElementById('pause-duration').value;
     state.draft.stops.push(makePause(duration));
+    markDirtyIfSent();
     closeModal();
   };
 }
