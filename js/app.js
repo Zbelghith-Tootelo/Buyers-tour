@@ -370,7 +370,6 @@ function renderListScreen() {
   if (tours.length === 0) {
     listHtml = `
       <div class="empty-state">
-        ${icon('tour', '')}
         <p>${q ? 'Aucun tour ne correspond à votre recherche.' : (state.listTab === 'upcoming' ? 'Aucun tour de visites à venir.' : 'Aucun tour de visites passé.')}</p>
         <p class="empty-sub">${q ? 'Essayez un autre nom.' : 'Créez votre premier tour pour commencer.'}</p>
       </div>`;
