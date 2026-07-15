@@ -402,7 +402,7 @@ function renderListScreen() {
       <button class="${state.listTab === 'past' ? 'active' : ''}" data-tab="past">Passé</button>
     </div>
     <div class="search-bar">
-      <input type="text" class="input" id="list-search" placeholder="Chercher un tour..." value="${esc(state.listSearch)}">
+      <input type="text" class="input" id="list-search" placeholder="Chercher un contact..." value="${esc(state.listSearch)}">
       ${icon('search')}
     </div>
     ${listHtml}
