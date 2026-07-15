@@ -736,7 +736,7 @@ const DEST_TABS = [
   { id: 'nom', label: 'Nom', icon: 'search' },
   { id: 'adresse', label: 'Adresse', icon: 'mapPinOutline' },
   { id: 'mls', label: 'MLS', icon: 'doc', prefix: '#' },
-  { id: 'cart', label: 'Cart', icon: 'cart' },
+  { id: 'cart', label: 'Panier', icon: 'cart' },
   { id: 'arret', label: 'Arrêt', icon: 'plus' },
   { id: 'pause', label: 'Pause', icon: 'pause' },
 ];
