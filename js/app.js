@@ -1021,7 +1021,11 @@ function renderEditStopModal() {
 
 function showToast(msg, type = 'default') {
   const root = document.getElementById('toast-root');
-  root.innerHTML = `<div class="toast ${type}">${icon(type === 'success' ? 'checkCircle' : 'info')} ${esc(msg)}</div>`;
+  root.innerHTML = `
+    <div class="toast ${type}">
+      <span class="toast-icon">${type === 'success' ? '✓' : 'i'}</span>
+      ${esc(msg)}
+    </div>`;
   clearTimeout(showToast._t);
   showToast._t = setTimeout(() => { root.innerHTML = ''; }, 2600);
 }
