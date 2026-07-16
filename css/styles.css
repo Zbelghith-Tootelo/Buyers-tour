@@ -467,6 +467,8 @@ a { color: inherit; text-decoration: none; }
 .result-row { display: flex; align-items: center; gap: 12px; padding: 12px 4px; border-bottom: 1px solid var(--bordures); cursor: pointer; }
 .result-row:hover { background: var(--neutre-surface); margin: 0 -8px; padding: 12px 8px; border-radius: var(--radius-md); }
 .result-row:last-child { border-bottom: none; }
+.result-row.is-added { cursor: default; }
+.result-row.is-added:hover { background: none; margin: 0; padding: 12px 4px; border-radius: 0; }
 .result-thumb { width: 77px; height: 50px; border-radius: var(--radius-lg); flex-shrink: 0; object-fit: cover; display: block; }
 .result-address { flex: 1; font-size: 14.5px; font-weight: 600; }
 .result-add-btn { width: 30px; height: 30px; border-radius: 999px; border: 1px solid var(--bleu-secondaire); color: var(--bleu-secondaire); background: var(--blanc); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }

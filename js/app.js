@@ -677,7 +677,7 @@ function renderFooterActions(propertyCount) {
   }
   if (sentTour) {
     return `
-      <button class="btn btn-outline" id="btn-share-buyer">Partager avec l'acheteur</button>
+      <button class="btn btn-primary" id="btn-share-buyer">Partager avec l'acheteur</button>
       <button class="btn btn-danger-outline" id="btn-delete-tour">Supprimer ce tour et annuler les demandes de visites</button>
     `;
   }
@@ -773,13 +773,12 @@ function renderConfirmSendModal() {
   return `
     <div class="modal-overlay" id="modal-overlay">
       <div class="modal modal-sm">
-        <div class="modal-head"><h2>Envoyer les demandes de visites</h2><button class="modal-close" id="modal-close">${icon('x')}</button></div>
-        <div class="modal-body">
-          <p style="font-size:14.5px;color:var(--texte-secondaire);line-height:1.5;margin-top:0;margin-bottom:0;">Qui doit recevoir ce tour de visites ?</p>
-        </div>
-        <div class="modal-footer" style="display:flex;flex-direction:column;gap:10px;">
-          <button class="btn btn-primary btn-block" id="btn-send-broker-only">Envoyer au courtier uniquement</button>
-          <button class="btn btn-outline btn-block" id="btn-send-broker-buyer">Envoyer au courtier et à l'acheteur</button>
+        <div class="modal-body" style="padding-top:24px;">
+          <h2 style="font-size:17px;text-align:center;color:var(--bleu-principal);margin:0 0 18px;">Envoyer la demande de visite à</h2>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <button class="btn btn-primary btn-block" id="btn-send-broker-buyer">Courtier et acheteur</button>
+            <button class="btn btn-primary btn-block" id="btn-send-broker-only">Courtier uniquement</button>
+          </div>
         </div>
       </div>
     </div>`;
@@ -885,7 +884,7 @@ function renderDestinationModal() {
           ${body}
         </div>
         <div class="modal-footer">
-          <button class="btn btn-outline btn-block" id="modal-cancel">Fermer</button>
+          <button class="btn btn-outline btn-block" id="modal-cancel">Ajouter</button>
         </div>
       </div>
     </div>`;
@@ -893,14 +892,15 @@ function renderDestinationModal() {
 
 function resultRow(p, addedMls) {
   const already = addedMls.has(p.mls);
+  // The whole row is the click target; the +/check on the right is a visual indicator.
   return `
-    <div class="result-row">
+    <div class="result-row ${already ? 'is-added' : ''}" ${already ? '' : `data-add-property="${p.mls}"`}>
       <img class="result-thumb" src="${thumbFor(p.mls, p.address)}" alt="">
 
       <div class="result-address">${esc(p.address)}</div>
-      <button class="result-add-btn ${already ? 'added' : ''}" data-add-property="${p.mls}" ${already ? 'disabled' : ''}>
+      <span class="result-add-btn ${already ? 'added' : ''}">
         ${icon(already ? 'check' : 'plus')}
-      </button>
+      </span>
     </div>`;
 }
 
