@@ -884,7 +884,7 @@ function renderDestinationModal() {
           ${body}
         </div>
         <div class="modal-footer">
-          <button class="btn btn-outline btn-block" id="modal-cancel">Ajouter</button>
+          <button class="btn btn-outline btn-block" id="modal-cancel">${state.draft.stops.length > (state.modal.initialStops ?? 0) ? 'Ajouter' : 'Fermer'}</button>
         </div>
       </div>
     </div>`;
@@ -1182,7 +1182,14 @@ function bindBuilderEvents() {
   const timeSelect = document.getElementById('builder-time');
   if (timeSelect) timeSelect.onchange = () => { state.draft.time = timeSelect.value; markDirtyIfSent(); render(); };
 
-  const openDestModal = () => { state.modal = { type: 'destination' }; state.destModalTab = 'cart'; state.destModalSearch = ''; render(); };
+  const openDestModal = () => {
+    // Remember how many stops the tour had when the modal opened: the footer
+    // button reads "Fermer" until something is added, then becomes "Ajouter".
+    state.modal = { type: 'destination', initialStops: state.draft.stops.length };
+    state.destModalTab = 'cart';
+    state.destModalSearch = '';
+    render();
+  };
   const addBtn1 = document.getElementById('btn-add-destination');
   if (addBtn1) addBtn1.onclick = openDestModal;
 
