@@ -892,9 +892,10 @@ function renderDestinationModal() {
 
 function resultRow(p, addedMls) {
   const already = addedMls.has(p.mls);
-  // The whole row is the click target; the +/check on the right is a visual indicator.
+  // The whole row is the click target and toggles the selection:
+  // one click adds the property to the tour, a second click removes it.
   return `
-    <div class="result-row ${already ? 'is-added' : ''}" ${already ? '' : `data-add-property="${p.mls}"`}>
+    <div class="result-row ${already ? 'is-added' : ''}" data-toggle-property="${p.mls}">
       <img class="result-thumb" src="${thumbFor(p.mls, p.address)}" alt="">
 
       <div class="result-address">${esc(p.address)}</div>
@@ -1394,12 +1395,17 @@ function bindDestinationModalEvents() {
   if (search) {
     search.oninput = () => { state.destModalSearch = search.value; render(); setTimeout(() => { const s = document.getElementById('dest-search'); if (s) { s.focus(); s.selectionStart = s.selectionEnd = s.value.length; } }, 0); };
   }
-  document.querySelectorAll('[data-add-property]').forEach(el => {
+  document.querySelectorAll('[data-toggle-property]').forEach(el => {
     el.onclick = () => {
-      const mls = el.getAttribute('data-add-property');
-      const prop = MLS_POOL.find(p => p.mls === mls) || mlsCart.find(p => p.mls === mls);
-      if (!prop) return;
-      state.draft.stops.push(makeStop(prop.address, prop.mls, { status: 'pending' }));
+      const mls = el.getAttribute('data-toggle-property');
+      const existing = state.draft.stops.find(s => s.mls === mls);
+      if (existing) {
+        state.draft.stops = state.draft.stops.filter(s => s.id !== existing.id);
+      } else {
+        const prop = MLS_POOL.find(p => p.mls === mls) || mlsCart.find(p => p.mls === mls);
+        if (!prop) return;
+        state.draft.stops.push(makeStop(prop.address, prop.mls, { status: 'pending' }));
+      }
       markDirtyIfSent();
       render();
     };
