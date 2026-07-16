@@ -239,12 +239,15 @@ const state = {
   dirty: false,             // unsaved edits on a tour that was already sent
 };
 
-// Any tour reachable via editingTourId already exists in state.tours, which only
-// ever holds tours that have been sent — so finding it there means "already sent".
+// The tours list holds both sent tours (sentAt set) and saved drafts (sentAt null).
+// The save/update flow only applies to tours whose requests were already sent.
+function currentTour() {
+  return state.editingTourId ? state.tours.find(t => t.id === state.editingTourId) : null;
+}
+
 function markDirtyIfSent() {
-  if (state.editingTourId && state.tours.some(t => t.id === state.editingTourId)) {
-    state.dirty = true;
-  }
+  const t = currentTour();
+  if (t && t.sentAt) state.dirty = true;
 }
 
 function saveDraftToTour(notify) {
@@ -409,7 +412,7 @@ function renderListScreen() {
               ${tourIconSvg(allConfirmed ? 'confirmed' : 'pending')}
             </div>
             <div class="tour-card-body">
-              <p class="tour-card-name">${esc(b ? `${b.prenom} ${b.nom}` : 'Acheteur')}</p>
+              <p class="tour-card-name">${esc(b ? `${b.prenom} ${b.nom}` : 'Acheteur')}${t.sentAt ? '' : ' <span class="draft-chip">Non envoyé</span>'}</p>
               <p class="tour-card-meta">Le tour commence à <strong>${t.time.replace(':', 'h')}</strong></p>
             </div>
             <div class="tour-card-count">${propCount}</div>
@@ -666,25 +669,28 @@ function renderBuilderScreen() {
 }
 
 function renderFooterActions(propertyCount) {
-  const sentTour = state.editingTourId ? state.tours.find(t => t.id === state.editingTourId) : null;
+  const tour = currentTour();
+  const isSent = !!(tour && tour.sentAt);
 
-  if (sentTour && state.dirty) {
+  if (isSent && state.dirty) {
     return `
       <button class="btn btn-primary" id="btn-save-update">Enregistrer et envoyer une mise à jour</button>
       <button class="btn btn-outline" id="btn-save-only">Enregistrer</button>
       <button class="btn btn-danger-outline" id="btn-delete-tour">Supprimer ce tour et annuler les demandes de visites</button>
     `;
   }
-  if (sentTour) {
+  if (isSent) {
     return `
       <button class="btn btn-primary" id="btn-share-buyer">Partager avec l'acheteur</button>
       <button class="btn btn-danger-outline" id="btn-delete-tour">Supprimer ce tour et annuler les demandes de visites</button>
     `;
   }
+  // New tour or saved draft (not sent yet)
   return `
     <button class="btn btn-primary" id="btn-send-tour" ${propertyCount === 0 ? 'disabled' : ''}>
       Envoyer les demandes de visites
     </button>
+    <button class="btn btn-outline" id="btn-save-draft" ${propertyCount === 0 ? 'disabled' : ''}>Enregistrer</button>
     <button class="btn btn-danger-outline" id="btn-delete-tour">Supprimer</button>
   `;
 }
@@ -698,7 +704,8 @@ function renderModal() {
   if (state.modal.type === 'destination') { root.innerHTML = renderDestinationModal(); return; }
   if (state.modal.type === 'confirmSend') { root.innerHTML = renderConfirmSendModal(); return; }
   if (state.modal.type === 'confirmDeleteTour') {
-    const wasSent = state.editingTourId && state.tours.some(t => t.id === state.editingTourId);
+    const t = currentTour();
+    const wasSent = !!(t && t.sentAt);
     const body = wasSent
       ? 'Cette action supprimera définitivement ce tour et annulera les demandes de visites déjà envoyées aux courtiers inscripteurs. Cette action est irréversible.'
       : 'Cette action supprimera définitivement ce tour de visites. Cette action est irréversible.';
@@ -1229,6 +1236,29 @@ function bindBuilderEvents() {
   const shareBtn = document.getElementById('btn-share-buyer');
   if (shareBtn) shareBtn.onclick = () => showToast('Le tour a été partagé avec l\'acheteur.', 'success');
 
+  const saveDraftBtn = document.getElementById('btn-save-draft');
+  if (saveDraftBtn) saveDraftBtn.onclick = () => {
+    const existing = currentTour();
+    if (existing) {
+      existing.buyerId = state.draft.buyer.id;
+      existing.date = state.draft.date;
+      existing.time = state.draft.time;
+      existing.stops = state.draft.stops;
+    } else {
+      const newId = uid();
+      state.tours.push({
+        id: newId, buyerId: state.draft.buyer.id, date: state.draft.date, time: state.draft.time,
+        stops: state.draft.stops, sentAt: null,
+      });
+      state.editingTourId = newId;
+    }
+    state.screen = 'list';
+    state.listTab = 'upcoming';
+    state.draft = null;
+    render();
+    showToast('Tour enregistré. Vous pourrez l\'envoyer plus tard.', 'success');
+  };
+
   const saveUpdateBtn = document.getElementById('btn-save-update');
   if (saveUpdateBtn) saveUpdateBtn.onclick = () => saveDraftToTour(true);
   const saveOnlyBtn = document.getElementById('btn-save-only');
@@ -1291,12 +1321,23 @@ function bindModalEvents() {
   if (state.modal.type === 'destination') bindDestinationModalEvents();
   if (state.modal.type === 'confirmSend') {
     const finalizeSend = (notifyBuyer) => {
-      const newId = uid();
-      state.tours.push({
-        id: newId, buyerId: state.draft.buyer.id, date: state.draft.date, time: state.draft.time,
-        stops: state.draft.stops, sentAt: Date.now(), sharedWithBuyer: notifyBuyer,
-      });
-      state.editingTourId = newId;
+      const existing = currentTour();
+      if (existing) {
+        // Sending a saved draft: update it in place and mark it sent.
+        existing.buyerId = state.draft.buyer.id;
+        existing.date = state.draft.date;
+        existing.time = state.draft.time;
+        existing.stops = state.draft.stops;
+        existing.sentAt = Date.now();
+        existing.sharedWithBuyer = notifyBuyer;
+      } else {
+        const newId = uid();
+        state.tours.push({
+          id: newId, buyerId: state.draft.buyer.id, date: state.draft.date, time: state.draft.time,
+          stops: state.draft.stops, sentAt: Date.now(), sharedWithBuyer: notifyBuyer,
+        });
+        state.editingTourId = newId;
+      }
       state.dirty = false;
       state.modal = null;
       render();
