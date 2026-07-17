@@ -1319,9 +1319,9 @@ function bindBuilderEvents() {
   const mapBtn = document.getElementById('btn-show-map');
   if (mapBtn) mapBtn.onclick = () => { state.modal = { type: 'map' }; render(); };
 
-  // Editing a property stop reopens the "Demande de visite" form pre-filled,
-  // so the requested time and message can be adjusted.
-  document.querySelectorAll('[data-edit-stop]').forEach(el => {
+  // Editing a property stop's own pencil reopens the "Demande de visite" form
+  // pre-filled, so the requested time and message can be adjusted.
+  document.querySelectorAll('.stop-card [data-edit-stop]').forEach(el => {
     el.onclick = () => {
       const stop = state.draft.stops.find(s => s.id === el.getAttribute('data-edit-stop'));
       if (!stop) return;
@@ -1340,6 +1340,11 @@ function bindBuilderEvents() {
       };
       render();
     };
+  });
+  // Travel-time and conflict-warning banners keep the original quick edit
+  // (status/duration), used to free up more margin for travel between stops.
+  document.querySelectorAll('.banner-edit-btn[data-edit-stop]').forEach(el => {
+    el.onclick = () => { state.modal = { type: 'editStop', stopId: el.getAttribute('data-edit-stop') }; render(); };
   });
   document.querySelectorAll('[data-edit-pause]').forEach(el => {
     el.onclick = () => { state.modal = { type: 'editStop', stopId: el.getAttribute('data-edit-pause') }; render(); };
