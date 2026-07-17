@@ -849,8 +849,8 @@ function renderVisitRequestModal() {
             <div class="field">
               <label class="field-label">À :</label>
               <select class="input select" id="vr-duration">
-                <option value="15" ${m.duration === 15 ? 'selected' : ''}>${minutesToLabel(m.from + 15).replace('h', ':')}</option>
-                <option value="30" ${m.duration === 30 ? 'selected' : ''}>${minutesToLabel(m.from + 30).replace('h', ':')}</option>
+                ${[...new Set([15, 30, m.duration])].sort((a, b) => a - b).map(d => `
+                  <option value="${d}" ${m.duration === d ? 'selected' : ''}>${minutesToLabel(m.from + d).replace('h', ':')}</option>`).join('')}
               </select>
             </div>
           </div>
@@ -1585,7 +1585,11 @@ function bindVisitRequestModalEvents() {
 
   const saveBtn = document.getElementById('vr-save');
   if (saveBtn) saveBtn.onclick = () => {
-    const stop = makeStop(m.address, m.mls, { status: 'pending' });
+    // Edit mode: update the existing stop in place; otherwise add a new one.
+    const stop = m.editStopId
+      ? state.draft.stops.find(s => s.id === m.editStopId)
+      : makeStop(m.address, m.mls, { status: 'pending' });
+    if (!stop) return;
     // Pin the stop to the requested slot so the schedule and conflict
     // warnings reflect what was asked to the listing broker.
     stop.locked = true;
@@ -1593,14 +1597,14 @@ function bindVisitRequestModalEvents() {
     stop.duration = m.duration;
     stop.comment = m.comment;
     stop.callback = m.callback;
-    state.draft.stops.push(stop);
+    if (!m.editStopId) state.draft.stops.push(stop);
     if (m.date !== state.draft.date && state.draft.stops.filter(s => s.type === 'property').length === 1) {
       state.draft.date = m.date;
     }
     markDirtyIfSent();
     state.modal = m.prevDestModal;
     render();
-    showToast('La propriété a été ajoutée avec succès.', 'success');
+    showToast(m.editStopId ? 'La demande de visite a été mise à jour.' : 'La propriété a été ajoutée avec succès.', 'success');
   };
 }
 
