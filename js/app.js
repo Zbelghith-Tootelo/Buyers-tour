@@ -1319,8 +1319,27 @@ function bindBuilderEvents() {
   const mapBtn = document.getElementById('btn-show-map');
   if (mapBtn) mapBtn.onclick = () => { state.modal = { type: 'map' }; render(); };
 
+  // Editing a property stop reopens the "Demande de visite" form pre-filled,
+  // so the requested time and message can be adjusted.
   document.querySelectorAll('[data-edit-stop]').forEach(el => {
-    el.onclick = () => { state.modal = { type: 'editStop', stopId: el.getAttribute('data-edit-stop') }; render(); };
+    el.onclick = () => {
+      const stop = state.draft.stops.find(s => s.id === el.getAttribute('data-edit-stop'));
+      if (!stop) return;
+      const row = computeSchedule(state.draft).find(r => r.stop.id === stop.id);
+      state.modal = {
+        type: 'visitRequest',
+        editStopId: stop.id,
+        mls: stop.mls,
+        address: stop.address,
+        date: state.draft.date,
+        from: stop.lockedStart ? timeToMinutes(stop.lockedStart) : (row ? row.start : timeToMinutes(state.draft.time)),
+        duration: stop.duration,
+        comment: stop.comment || '',
+        callback: stop.callback || '',
+        prevDestModal: null,
+      };
+      render();
+    };
   });
   document.querySelectorAll('[data-edit-pause]').forEach(el => {
     el.onclick = () => { state.modal = { type: 'editStop', stopId: el.getAttribute('data-edit-pause') }; render(); };
