@@ -672,6 +672,11 @@ function renderFooterActions(propertyCount) {
   const tour = currentTour();
   const isSent = !!(tour && tour.sentAt);
 
+  const gcalBtn = `
+    <button class="btn btn-outline" id="btn-gcal" ${propertyCount === 0 ? 'disabled' : ''}>
+      ${icon('calendar')} Ajouter à mon calendrier Google
+    </button>`;
+
   if (isSent && state.dirty) {
     return `
       <button class="btn btn-primary" id="btn-save-update">Enregistrer et envoyer une mise à jour</button>
@@ -682,6 +687,7 @@ function renderFooterActions(propertyCount) {
   if (isSent) {
     return `
       <button class="btn btn-primary" id="btn-share-buyer">Partager avec l'acheteur</button>
+      ${gcalBtn}
       <button class="btn btn-danger-outline" id="btn-delete-tour">Supprimer ce tour et annuler les demandes de visites</button>
     `;
   }
@@ -691,8 +697,34 @@ function renderFooterActions(propertyCount) {
       Envoyer les demandes de visites
     </button>
     <button class="btn btn-outline" id="btn-save-draft" ${propertyCount === 0 ? 'disabled' : ''}>Enregistrer</button>
+    ${gcalBtn}
     <button class="btn btn-danger-outline" id="btn-delete-tour">Supprimer</button>
   `;
+}
+
+// Google Calendar "create event" link for the tour currently in the builder.
+function googleCalendarUrl() {
+  const d = state.draft;
+  const rows = computeSchedule(d);
+  const startMin = timeToMinutes(d.time);
+  const last = rows[rows.length - 1];
+  const endMin = last ? last.start + last.stop.duration : startMin + 60;
+  const dateStr = d.date.replace(/-/g, '');
+  const fmt = (m) => `${String(Math.floor(m / 60) % 24).padStart(2, '0')}${String(m % 60).padStart(2, '0')}00`;
+  const propRows = rows.filter(r => r.stop.type === 'property');
+  const details = [
+    `Tour de visites avec ${d.buyer.prenom} ${d.buyer.nom}`,
+    '',
+    ...propRows.map((r, i) => `${i + 1}. ${r.stop.address} — ${minutesToLabel(r.start)} à ${minutesToLabel(r.start + r.stop.duration)}`),
+  ].join('\n');
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: `Tour de visites — ${d.buyer.prenom} ${d.buyer.nom}`,
+    dates: `${dateStr}T${fmt(startMin)}/${dateStr}T${fmt(endMin)}`,
+    details,
+    location: propRows[0] ? propRows[0].stop.address : '',
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
 /* ---------------- Modal rendering ---------------- */
@@ -1239,6 +1271,9 @@ function bindBuilderEvents() {
 
   const shareBtn = document.getElementById('btn-share-buyer');
   if (shareBtn) shareBtn.onclick = () => showToast('Le tour a été partagé avec l\'acheteur.', 'success');
+
+  const gcalBtn = document.getElementById('btn-gcal');
+  if (gcalBtn) gcalBtn.onclick = () => window.open(googleCalendarUrl(), '_blank', 'noopener');
 
   const saveDraftBtn = document.getElementById('btn-save-draft');
   if (saveDraftBtn) saveDraftBtn.onclick = () => {
