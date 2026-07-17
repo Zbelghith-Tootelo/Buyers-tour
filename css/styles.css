@@ -400,6 +400,9 @@ a { color: inherit; text-decoration: none; }
 .drag-handle:active { cursor: grabbing; }
 .drag-handle svg { width: 16px; height: 16px; }
 
+.stop-visited { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 20px; height: 20px; padding: 8px; margin: -8px; cursor: pointer; }
+.stop-visited input { width: 18px; height: 18px; accent-color: var(--succes); cursor: pointer; }
+
 .stop-icon { width: 34px; height: 34px; border-radius: var(--radius-md); background: var(--lumiere-principale); display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; }
 .stop-icon svg { width: 18px; height: 18px; color: var(--bleu-principal); }
 .stop-icon .stop-glyph-confirmed, .stop-icon .stop-glyph-pending { width: 30px; height: 24px; }
@@ -412,6 +415,8 @@ a { color: inherit; text-decoration: none; }
 .stop-meta { font-size: 13px; color: var(--texte-secondaire); margin: 0; }
 .stop-meta .status-ok { color: var(--succes); font-weight: 600; }
 .stop-meta .status-pending { color: var(--attention); font-weight: 600; }
+.stop-meta .status-visited { color: var(--succes); font-weight: 600; display: inline-flex; align-items: center; gap: 3px; }
+.stop-meta .status-visited svg { width: 12px; height: 12px; }
 .stop-meta .dot { margin: 0 5px; }
 
 .stop-actions { display: flex; gap: 6px; flex-shrink: 0; }
@@ -475,6 +480,9 @@ a { color: inherit; text-decoration: none; }
 
 .info-banner { display: flex; gap: 10px; align-items: flex-start; background: var(--bleu-action-10); color: var(--bleu-action-dark); padding: 12px 14px; border-radius: var(--radius-md); border-left: 4px solid var(--bleu-secondaire); font-size: 13.5px; margin-bottom: 4px; }
 .info-banner svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
+.info-banner.clickable { cursor: pointer; }
+.info-banner.clickable:hover { border-left-color: var(--bleu-action-dark); }
+.info-banner.clickable:hover span { text-decoration: underline; }
 
 .result-row { display: flex; align-items: center; gap: 12px; padding: 12px 4px; border-bottom: 1px solid var(--bordures); cursor: pointer; }
 .result-row:hover { background: var(--neutre-surface); margin: 0 -8px; padding: 12px 8px; border-radius: var(--radius-md); }

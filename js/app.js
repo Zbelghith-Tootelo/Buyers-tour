@@ -161,6 +161,7 @@ function makeStop(address, mls, opts = {}) {
     duration: opts.duration || 30,
     locked: opts.status === 'confirmed',
     lockedStart: opts.lockedStart || null,
+    visited: opts.visited || false,
   };
 }
 function makePause(duration = 30) {
@@ -239,6 +240,7 @@ const state = {
   modal: null,              // { type, ...payload }
   destModalTab: 'nom',
   destModalSearch: '',
+  destModalPrefillAddress: '',
   dragStopId: null,
   dirty: false,             // unsaved edits on a tour that was already sent
 };
@@ -619,12 +621,15 @@ function renderBuilderScreen() {
       card = `
         <div class="stop-card" draggable="true" data-stop-id="${stop.id}">
           <span class="drag-handle">${icon('drag')}</span>
+          <label class="stop-visited" title="Marquer la visite comme effectuée">
+            <input type="checkbox" data-toggle-visited="${stop.id}" aria-label="Visité" ${stop.visited ? 'checked' : ''}>
+          </label>
           <div class="stop-icon">
             ${stop.status === 'confirmed' ? STOP_ICON_CONFIRMED_SVG : STOP_ICON_PENDING_SVG}
           </div>
           <div class="stop-body">
             <p class="stop-address">${esc(stop.address)}</p>
-            <p class="stop-meta">Heure de visite : ${minutesToLabel(start)} – ${minutesToLabel(start + stop.duration)} <span class="dot">•</span> ${statusHtml}</p>
+            <p class="stop-meta">Heure de visite : ${minutesToLabel(start)} – ${minutesToLabel(start + stop.duration)} <span class="dot">•</span> ${statusHtml}${stop.visited ? ` <span class="dot">•</span> <span class="status-visited">${icon('check')} Visité</span>` : ''}</p>
           </div>
           <div class="stop-actions">
             <button class="btn-icon" data-edit-stop="${stop.id}">${icon('pencil')}</button>
@@ -942,7 +947,14 @@ function renderDestinationModal() {
       </div>
       <div class="info-banner">${icon('info')} <span>Cliquez sur un résultat pour l'ajouter directement au tour.</span></div>
       <div style="margin-top:10px;">
-        ${results.map(p => resultRow(p, addedMls)).join('') || (q ? '<p class="helper-text" style="margin-top:14px;">Aucun résultat.</p>' : '')}
+        ${results.map(p => resultRow(p, addedMls)).join('') || (q ? `
+          <p class="helper-text" style="margin-top:14px;">Aucun résultat.</p>
+          ${tab === 'adresse' ? `
+            <div class="info-banner clickable" data-goto-arret style="margin-top:10px;">${icon('plus')} <span>Adresse introuvable ? L'ajouter comme arrêt personnalisé.</span></div>
+          ` : tab === 'mls' ? `
+            <div class="info-banner clickable" data-goto-arret style="margin-top:10px;">${icon('plus')} <span>Numéro MLS introuvable ? Ajouter l'adresse manuellement.</span></div>
+          ` : ''}
+        ` : '')}
       </div>
     `;
   } else if (tab === 'cart') {
@@ -960,7 +972,7 @@ function renderDestinationModal() {
       </div>
       <div class="field">
         <label class="field-label">Adresse</label>
-        <input class="input" id="stop-address" placeholder="Ex: 1250 Rue Sainte-Catherine, Montréal">
+        <input class="input" id="stop-address" placeholder="Ex: 1250 Rue Sainte-Catherine, Montréal" value="${esc(state.destModalPrefillAddress)}">
       </div>
       <button class="btn btn-secondary btn-block" id="btn-add-custom-stop">${icon('plus')} Ajouter cet arrêt</button>
     `;
@@ -1360,6 +1372,15 @@ function bindBuilderEvents() {
       render();
     };
   });
+  document.querySelectorAll('[data-toggle-visited]').forEach(el => {
+    el.onchange = () => {
+      const stop = state.draft.stops.find(s => s.id === el.getAttribute('data-toggle-visited'));
+      if (!stop) return;
+      stop.visited = el.checked;
+      markDirtyIfSent();
+      render();
+    };
+  });
 
   const sendBtn = document.getElementById('btn-send-tour');
   if (sendBtn) sendBtn.onclick = () => { state.modal = { type: 'confirmSend' }; render(); };
@@ -1614,8 +1635,15 @@ function bindVisitRequestModalEvents() {
 
 function bindDestinationModalEvents() {
   document.querySelectorAll('[data-dest-tab]').forEach(el => {
-    el.onclick = () => { state.destModalTab = el.getAttribute('data-dest-tab'); state.destModalSearch = ''; render(); };
+    el.onclick = () => { state.destModalTab = el.getAttribute('data-dest-tab'); state.destModalSearch = ''; state.destModalPrefillAddress = ''; render(); };
   });
+  const gotoArret = document.querySelector('[data-goto-arret]');
+  if (gotoArret) gotoArret.onclick = () => {
+    state.destModalPrefillAddress = state.destModalTab === 'adresse' ? state.destModalSearch : '';
+    state.destModalTab = 'arret';
+    state.destModalSearch = '';
+    render();
+  };
   const search = document.getElementById('dest-search');
   if (search) {
     search.oninput = () => { state.destModalSearch = search.value; render(); setTimeout(() => { const s = document.getElementById('dest-search'); if (s) { s.focus(); s.selectionStart = s.selectionEnd = s.value.length; } }, 0); };
@@ -1657,7 +1685,7 @@ function bindDestinationModalEvents() {
     const name = document.getElementById('stop-name').value.trim();
     const address = document.getElementById('stop-address').value.trim();
     if (!address) return;
-    state.draft.stops.push({ id: uid(), type: 'property', address: name ? `${name} — ${address}` : address, mls: null, status: 'pending', duration: 20, locked: false });
+    state.draft.stops.push({ id: uid(), type: 'property', address: name ? `${name} — ${address}` : address, mls: null, status: 'pending', duration: 20, locked: false, visited: false });
     markDirtyIfSent();
     closeModal();
   };
