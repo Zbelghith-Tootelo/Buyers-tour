@@ -489,6 +489,42 @@ a { color: inherit; text-decoration: none; }
 .pause-option { display: flex; align-items: center; justify-content: space-between; padding: 14px; border: 1px solid var(--bordures); border-radius: var(--radius-lg); margin-bottom: 10px; }
 .pause-option .field { margin: 0; flex: 1; max-width: 160px; }
 
+/* ---------- Demande de visite (Figma 4382:11041) ---------- */
+
+.vr-head { display: flex; align-items: center; gap: 8px; }
+.vr-back { background: none; border: none; padding: 4px; cursor: pointer; color: #1A2740; display: flex; }
+.vr-back svg { width: 22px; height: 22px; }
+.vr-title { flex: 1; text-align: center; font-size: 18px; margin: 0; }
+.vr-head-spacer { width: 30px; }
+
+.vr-broker { display: flex; align-items: center; gap: 12px; padding: 6px 0 14px; border-bottom: 1px solid var(--bordures); margin-bottom: 14px; }
+.vr-broker-avatar {
+  width: 42px; height: 42px; border-radius: var(--radius-md); flex-shrink: 0;
+  background: var(--bleu-principal); color: var(--blanc);
+  font-size: 15px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.vr-broker-name { margin: 0; font-size: 15px; font-weight: 700; }
+.vr-broker-agency { margin: 2px 0 0; font-size: 13px; color: var(--texte-secondaire); }
+
+.vr-property { display: flex; align-items: center; gap: 12px; padding-bottom: 16px; }
+.vr-property-address { font-size: 15px; font-weight: 600; }
+
+.vr-date { background: var(--neutre-surface); border-color: var(--neutre-surface); }
+
+.vr-note { font-size: 12.5px; color: var(--texte-principal); margin: -8px 0 14px; }
+
+.vr-availability {
+  background: #F5F87F;
+  color: var(--texte-principal);
+  font-size: 14px; font-weight: 600; text-align: center;
+  padding: 13px; border-radius: var(--radius-md);
+  margin-bottom: 16px;
+}
+
+.vr-comment { height: auto; min-height: 84px; padding: 12px 14px; resize: vertical; font-family: inherit; }
+.vr-charcount { font-size: 12.5px; color: var(--texte-secondaire); text-align: right; margin: 6px 0 0; }
+
 /* ---------- Toast (Figma 4337:3707: banner shown at the top of the page) ---------- */
 
 .toast {

@@ -734,6 +734,7 @@ function renderModal() {
   if (!state.modal) { root.innerHTML = ''; return; }
 
   if (state.modal.type === 'destination') { root.innerHTML = renderDestinationModal(); return; }
+  if (state.modal.type === 'visitRequest') { root.innerHTML = renderVisitRequestModal(); return; }
   if (state.modal.type === 'confirmSend') { root.innerHTML = renderConfirmSendModal(); return; }
   if (state.modal.type === 'confirmDeleteTour') {
     const t = currentTour();
@@ -803,6 +804,72 @@ function renderEditBuyerModal() {
         <div class="modal-footer" style="display:flex;gap:10px;">
           <button class="btn btn-primary" id="btn-save-edit-buyer">Sauvegarder</button>
           <button class="btn btn-outline" id="modal-cancel">Annuler</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderVisitRequestModal() {
+  const m = state.modal;
+  const courtier = courtierFor(m.mls);
+  const initials = courtier.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const fromOptions = TIME_OPTIONS.map(t => `<option value="${timeToMinutes(t)}" ${timeToMinutes(t) === m.from ? 'selected' : ''}>${t}</option>`).join('');
+
+  return `
+    <div class="modal-overlay" id="modal-overlay">
+      <div class="modal">
+        <div class="modal-head vr-head">
+          <button class="vr-back" id="vr-back" title="Retour">${icon('arrowLeft')}</button>
+          <h2 class="vr-title">Demande de visite</h2>
+          <span class="vr-head-spacer"></span>
+        </div>
+        <div class="modal-body">
+          <div class="vr-broker">
+            <span class="vr-broker-avatar">${esc(initials)}</span>
+            <div>
+              <p class="vr-broker-name">${esc(courtier)}</p>
+              <p class="vr-broker-agency">Courtier inscripteur, Immocontact</p>
+            </div>
+          </div>
+          <div class="vr-property">
+            <img class="result-thumb" src="${thumbFor(m.mls, m.address)}" alt="">
+            <span class="vr-property-address">${esc(m.address)}</span>
+          </div>
+
+          <div class="field">
+            <label class="field-label">Date</label>
+            <input type="date" class="input vr-date" id="vr-date" value="${m.date}">
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label class="field-label">De :</label>
+              <select class="input select" id="vr-from">${fromOptions}</select>
+            </div>
+            <div class="field">
+              <label class="field-label">À :</label>
+              <select class="input select" id="vr-duration">
+                <option value="15" ${m.duration === 15 ? 'selected' : ''}>${minutesToLabel(m.from + 15).replace('h', ':')}</option>
+                <option value="30" ${m.duration === 30 ? 'selected' : ''}>${minutesToLabel(m.from + 30).replace('h', ':')}</option>
+              </select>
+            </div>
+          </div>
+          <p class="vr-note">La durée de visite est limitée à 30 minutes</p>
+
+          <div class="vr-availability">Disponibilité à confirmer</div>
+
+          <div class="field" style="margin-bottom:4px;">
+            <textarea class="input vr-comment" id="vr-comment" placeholder="Commentaires" maxlength="750" rows="3">${esc(m.comment)}</textarea>
+            <p class="vr-charcount">Caractères : <span id="vr-charcount">${m.comment.length}</span> / 750</p>
+          </div>
+
+          <div class="field">
+            <label class="field-label">Numéro de rappel</label>
+            <input type="tel" class="input" id="vr-callback" value="${esc(m.callback)}" placeholder="(514) 000-0000">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" id="vr-save" style="min-width:220px;">Enregistrer</button>
         </div>
       </div>
     </div>`;
@@ -1358,6 +1425,7 @@ function bindModalEvents() {
   document.addEventListener('keydown', escHandler);
 
   if (state.modal.type === 'destination') bindDestinationModalEvents();
+  if (state.modal.type === 'visitRequest') bindVisitRequestModalEvents();
   if (state.modal.type === 'confirmSend') {
     const finalizeSend = (notifyBuyer) => {
       const existing = currentTour();
@@ -1467,6 +1535,51 @@ function bindEditBuyerModalEvents() {
   };
 }
 
+function bindVisitRequestModalEvents() {
+  const m = state.modal;
+
+  const backBtn = document.getElementById('vr-back');
+  if (backBtn) backBtn.onclick = () => { state.modal = m.prevDestModal; render(); };
+
+  const dateInput = document.getElementById('vr-date');
+  if (dateInput) dateInput.onchange = () => { m.date = dateInput.value; };
+
+  const fromSelect = document.getElementById('vr-from');
+  if (fromSelect) fromSelect.onchange = () => { m.from = +fromSelect.value; render(); };
+
+  const durSelect = document.getElementById('vr-duration');
+  if (durSelect) durSelect.onchange = () => { m.duration = +durSelect.value; };
+
+  const comment = document.getElementById('vr-comment');
+  if (comment) comment.oninput = () => {
+    m.comment = comment.value;
+    document.getElementById('vr-charcount').textContent = comment.value.length;
+  };
+
+  const callback = document.getElementById('vr-callback');
+  if (callback) callback.oninput = () => { m.callback = callback.value; };
+
+  const saveBtn = document.getElementById('vr-save');
+  if (saveBtn) saveBtn.onclick = () => {
+    const stop = makeStop(m.address, m.mls, { status: 'pending' });
+    // Pin the stop to the requested slot so the schedule and conflict
+    // warnings reflect what was asked to the listing broker.
+    stop.locked = true;
+    stop.lockedStart = minutesToLabel(m.from).replace('h', ':');
+    stop.duration = m.duration;
+    stop.comment = m.comment;
+    stop.callback = m.callback;
+    state.draft.stops.push(stop);
+    if (m.date !== state.draft.date && state.draft.stops.filter(s => s.type === 'property').length === 1) {
+      state.draft.date = m.date;
+    }
+    markDirtyIfSent();
+    state.modal = m.prevDestModal;
+    render();
+    showToast('La propriété a été ajoutée avec succès.', 'success');
+  };
+}
+
 function bindDestinationModalEvents() {
   document.querySelectorAll('[data-dest-tab]').forEach(el => {
     el.onclick = () => { state.destModalTab = el.getAttribute('data-dest-tab'); state.destModalSearch = ''; render(); };
@@ -1480,13 +1593,30 @@ function bindDestinationModalEvents() {
       const mls = el.getAttribute('data-toggle-property');
       const existing = state.draft.stops.find(s => s.mls === mls);
       if (existing) {
+        // Second click deselects directly, no form needed.
         state.draft.stops = state.draft.stops.filter(s => s.id !== existing.id);
-      } else {
-        const prop = MLS_POOL.find(p => p.mls === mls) || mlsCart.find(p => p.mls === mls);
-        if (!prop) return;
-        state.draft.stops.push(makeStop(prop.address, prop.mls, { status: 'pending' }));
+        markDirtyIfSent();
+        render();
+        return;
       }
-      markDirtyIfSent();
+      const prop = MLS_POOL.find(p => p.mls === mls) || mlsCart.find(p => p.mls === mls);
+      if (!prop) return;
+      // Adding a property goes through the "Demande de visite" step where the
+      // tour creator picks the visit time before the request goes to the broker.
+      const rows = computeSchedule(state.draft);
+      const lastProp = rows.filter(r => r.stop.type === 'property').pop();
+      const defaultStart = Math.min(lastProp ? lastProp.start + lastProp.stop.duration + 15 : timeToMinutes(state.draft.time), 20 * 60);
+      state.modal = {
+        type: 'visitRequest',
+        mls: prop.mls,
+        address: prop.address,
+        date: state.draft.date,
+        from: defaultStart,
+        duration: 30,
+        comment: '',
+        callback: '',
+        prevDestModal: { type: 'destination', initialStops: state.modal.initialStops },
+      };
       render();
     };
   });
