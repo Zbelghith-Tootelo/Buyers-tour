@@ -1210,13 +1210,16 @@ function bindEvents() {
   const menuBtn = document.getElementById('mobile-menu-btn');
   if (menuBtn) menuBtn.onclick = () => { state.screen = 'menu'; state.draft = null; render(); };
 
-  const backBtn = document.getElementById('mobile-back-btn');
-  if (backBtn) backBtn.onclick = () => {
+  const goBack = () => {
     if (state.screen === 'map') { state.screen = 'builder'; }
     else if (state.screen === 'contact' || state.screen === 'builder') { state.screen = 'list'; state.draft = null; }
     else { state.screen = 'menu'; }
     render();
   };
+  const backBtn = document.getElementById('mobile-back-btn');
+  if (backBtn) backBtn.onclick = goBack;
+  const topbarBackBtn = document.getElementById('topbar-back-btn');
+  if (topbarBackBtn) topbarBackBtn.onclick = goBack;
 
   if (state.screen === 'list') bindListEvents();
   if (state.screen === 'contact') bindContactEvents();
