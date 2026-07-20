@@ -257,17 +257,22 @@ function markDirtyIfSent() {
   if (t && t.sentAt) state.dirty = true;
 }
 
-function saveDraftToTour(notify) {
+function saveDraftToTour(notify, notifyBuyer = false) {
   const t = state.tours.find(x => x.id === state.editingTourId);
   if (!t) return;
   t.buyerId = state.draft.buyer.id;
   t.date = state.draft.date;
   t.time = state.draft.time;
   t.stops = state.draft.stops;
+  if (notify) t.sharedWithBuyer = notifyBuyer;
   state.dirty = false;
   render();
   showToast(
-    notify ? 'Modifications enregistrées et mise à jour envoyée aux courtiers concernés.' : 'Modifications enregistrées.',
+    !notify
+      ? 'Modifications enregistrées.'
+      : notifyBuyer
+        ? 'Modifications enregistrées et mise à jour envoyée aux courtiers concernés et à l\'acheteur.'
+        : 'Modifications enregistrées et mise à jour envoyée aux courtiers concernés.',
     'success'
   );
 }
@@ -687,8 +692,9 @@ function renderFooterActions(propertyCount) {
 
   if (isSent && state.dirty) {
     return `
-      <button class="btn btn-primary" id="btn-save-update">Enregistrer et envoyer une mise à jour</button>
+      <button class="btn btn-primary" id="btn-save-update">Envoyer une mise à jour</button>
       <button class="btn btn-outline" id="btn-save-only">Enregistrer</button>
+      ${gcalBtn}
       <button class="btn btn-danger-outline" id="btn-delete-tour">Supprimer ce tour et annuler les demandes de visites</button>
     `;
   }
@@ -744,6 +750,7 @@ function renderModal() {
   if (state.modal.type === 'destination') { root.innerHTML = renderDestinationModal(); return; }
   if (state.modal.type === 'visitRequest') { root.innerHTML = renderVisitRequestModal(); return; }
   if (state.modal.type === 'confirmSend') { root.innerHTML = renderConfirmSendModal(); return; }
+  if (state.modal.type === 'confirmSendUpdate') { root.innerHTML = renderConfirmSendUpdateModal(); return; }
   if (state.modal.type === 'confirmDeleteTour') {
     const t = currentTour();
     const wasSent = !!(t && t.sentAt);
@@ -892,6 +899,21 @@ function renderConfirmSendModal() {
           <div style="display:flex;flex-direction:column;gap:12px;">
             <button class="btn btn-primary btn-block" id="btn-send-broker-buyer">Courtier et acheteur</button>
             <button class="btn btn-primary btn-block" id="btn-send-broker-only">Courtier uniquement</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderConfirmSendUpdateModal() {
+  return `
+    <div class="modal-overlay" id="modal-overlay">
+      <div class="modal modal-sm">
+        <div class="modal-body" style="padding-top:24px;">
+          <h2 style="font-size:17px;text-align:center;color:var(--bleu-principal);margin:0 0 18px;">Envoyer la mise à jour à</h2>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <button class="btn btn-primary btn-block" id="btn-send-update-broker-buyer">Courtier et acheteur</button>
+            <button class="btn btn-primary btn-block" id="btn-send-update-broker-only">Courtier uniquement</button>
           </div>
         </div>
       </div>
@@ -1414,7 +1436,7 @@ function bindBuilderEvents() {
   };
 
   const saveUpdateBtn = document.getElementById('btn-save-update');
-  if (saveUpdateBtn) saveUpdateBtn.onclick = () => saveDraftToTour(true);
+  if (saveUpdateBtn) saveUpdateBtn.onclick = () => { state.modal = { type: 'confirmSendUpdate' }; render(); };
   const saveOnlyBtn = document.getElementById('btn-save-only');
   if (saveOnlyBtn) saveOnlyBtn.onclick = () => saveDraftToTour(false);
 
@@ -1507,6 +1529,12 @@ function bindModalEvents() {
     if (brokerOnly) brokerOnly.onclick = () => finalizeSend(false);
     const brokerBuyer = document.getElementById('btn-send-broker-buyer');
     if (brokerBuyer) brokerBuyer.onclick = () => finalizeSend(true);
+  }
+  if (state.modal.type === 'confirmSendUpdate') {
+    const brokerOnly = document.getElementById('btn-send-update-broker-only');
+    if (brokerOnly) brokerOnly.onclick = () => { state.modal = null; saveDraftToTour(true, false); };
+    const brokerBuyer = document.getElementById('btn-send-update-broker-buyer');
+    if (brokerBuyer) brokerBuyer.onclick = () => { state.modal = null; saveDraftToTour(true, true); };
   }
   if (state.modal.type === 'confirmDeleteTour') {
     const btn = document.getElementById('btn-confirm-delete-tour');
