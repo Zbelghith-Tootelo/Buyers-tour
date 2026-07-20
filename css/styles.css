@@ -229,6 +229,9 @@ a { color: inherit; text-decoration: none; }
 .btn-icon.danger:hover { background: var(--rouge-10); }
 .btn-icon svg { width: 17px; height: 17px; }
 
+.btn-icon.toggle-visited.active { background: var(--succes); border-color: var(--succes); color: var(--blanc); }
+.btn-icon.toggle-visited.active:hover { background: var(--succes); opacity: 0.9; }
+
 /* ---------- Forms ---------- */
 
 .field { margin-bottom: 18px; }
@@ -399,9 +402,6 @@ a { color: inherit; text-decoration: none; }
 .drag-handle { cursor: grab; color: #C5CBE0; flex-shrink: 0; width: 18px; height: 18px; touch-action: none; }
 .drag-handle:active { cursor: grabbing; }
 .drag-handle svg { width: 16px; height: 16px; }
-
-.stop-visited { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 20px; height: 20px; padding: 8px; margin: -8px; cursor: pointer; }
-.stop-visited input { width: 18px; height: 18px; accent-color: var(--succes); cursor: pointer; }
 
 .stop-icon { width: 34px; height: 34px; border-radius: var(--radius-md); background: var(--lumiere-principale); display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; }
 .stop-icon svg { width: 18px; height: 18px; color: var(--bleu-principal); }

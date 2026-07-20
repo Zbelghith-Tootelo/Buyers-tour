@@ -621,9 +621,6 @@ function renderBuilderScreen() {
       card = `
         <div class="stop-card" draggable="true" data-stop-id="${stop.id}">
           <span class="drag-handle">${icon('drag')}</span>
-          <label class="stop-visited" title="Marquer la visite comme effectuée">
-            <input type="checkbox" data-toggle-visited="${stop.id}" aria-label="Visité" ${stop.visited ? 'checked' : ''}>
-          </label>
           <div class="stop-icon">
             ${stop.status === 'confirmed' ? STOP_ICON_CONFIRMED_SVG : STOP_ICON_PENDING_SVG}
           </div>
@@ -634,6 +631,7 @@ function renderBuilderScreen() {
           <div class="stop-actions">
             <button class="btn-icon" data-edit-stop="${stop.id}">${icon('pencil')}</button>
             <button class="btn-icon danger" data-remove-stop="${stop.id}">${icon('trash')}</button>
+            <button class="btn-icon toggle-visited ${stop.visited ? 'active' : ''}" data-toggle-visited="${stop.id}" aria-pressed="${stop.visited ? 'true' : 'false'}" title="${stop.visited ? 'Marquer comme non visité' : 'Marquer la visite comme effectuée'}">${icon('check')}</button>
           </div>
         </div>`;
     }
@@ -1373,10 +1371,10 @@ function bindBuilderEvents() {
     };
   });
   document.querySelectorAll('[data-toggle-visited]').forEach(el => {
-    el.onchange = () => {
+    el.onclick = () => {
       const stop = state.draft.stops.find(s => s.id === el.getAttribute('data-toggle-visited'));
       if (!stop) return;
-      stop.visited = el.checked;
+      stop.visited = !stop.visited;
       markDirtyIfSent();
       render();
     };
