@@ -257,6 +257,17 @@ function markDirtyIfSent() {
   if (t && t.sentAt) state.dirty = true;
 }
 
+function optimizeDraftStops() {
+  const pauses = state.draft.stops.filter(s => s.type === 'pause');
+  const props = state.draft.stops.filter(s => s.type === 'property')
+    .slice()
+    .sort((a, b) => a.address.localeCompare(b.address));
+  state.draft.stops = [...props, ...pauses];
+  markDirtyIfSent();
+  render();
+  showToast('Tour optimisé selon la distance estimée.', 'success');
+}
+
 function saveDraftToTour(notify, notifyBuyer = false) {
   const t = state.tours.find(x => x.id === state.editingTourId);
   if (!t) return;
@@ -366,6 +377,7 @@ function render() {
   if (state.screen === 'list') { setTopbarTitle('Tour de visites'); main.innerHTML = renderListScreen(); }
   else if (state.screen === 'contact') { setTopbarTitle('Créer un tour de visites'); main.innerHTML = renderContactScreen(); }
   else if (state.screen === 'builder') { setTopbarTitle('Créer un tour de visites'); main.innerHTML = renderBuilderScreen(); }
+  else if (state.screen === 'map') { setTopbarTitle('Carte du tour'); main.innerHTML = renderMapScreen(); }
   else if (state.screen === 'menu') { setTopbarTitle('Menu'); main.innerHTML = renderMenuScreen(); }
   document.body.dataset.screen = state.screen;
   renderModal();
@@ -761,7 +773,6 @@ function renderModal() {
     return;
   }
   if (state.modal.type === 'editBuyer') { root.innerHTML = renderEditBuyerModal(); return; }
-  if (state.modal.type === 'map') { root.innerHTML = renderMapModal(); return; }
   if (state.modal.type === 'editStop') { root.innerHTML = renderEditStopModal(); return; }
   root.innerHTML = '';
 }
@@ -1048,8 +1059,9 @@ function resultRow(p, addedMls) {
     </div>`;
 }
 
-function renderMapModal() {
+function renderMapScreen() {
   const draft = state.draft;
+  const rows = computeSchedule(draft);
   const stopsWithPos = draft.stops.filter(s => s.type === 'property').map((s, i) => {
     const h = hashStr(s.address);
     return { ...s, x: 12 + (h % 74), y: 12 + ((h >> 4) % 62), idx: i + 1 };
@@ -1078,28 +1090,43 @@ function renderMapModal() {
       ${stopsWithPos.map(s => `<circle cx="${s.x}" cy="${s.y}" r="1.2" class="map-route-dot"/>`).join('')}
     </svg>` : '';
 
+  const stopsHtml = draft.stops.length === 0 ? '' : rows.map(({ stop, start }) => {
+    const label = stop.type === 'pause'
+      ? `Pause : Durée ${stop.duration} minutes`
+      : esc(stop.address);
+    const meta = stop.type === 'pause'
+      ? `Débute vers ${minutesToLabel(start)}`
+      : `Heure de visite : ${minutesToLabel(start)} – ${minutesToLabel(start + stop.duration)}`;
+    return `
+      <div class="stop-card" draggable="true" data-stop-id="${stop.id}">
+        <span class="drag-handle">${icon('drag')}</span>
+        <div class="stop-icon ${stop.type === 'pause' ? 'pause' : ''}">
+          ${stop.type === 'pause' ? icon('pause') : (stop.status === 'confirmed' ? STOP_ICON_CONFIRMED_SVG : STOP_ICON_PENDING_SVG)}
+        </div>
+        <div class="stop-body">
+          <p class="stop-address">${label}</p>
+          <p class="stop-meta">${meta}</p>
+        </div>
+      </div>`;
+  }).join('');
+
   return `
-    <div class="modal-overlay" id="modal-overlay">
-      <div class="modal">
-        <div class="modal-head"><h2>Aperçu du tour sur la carte</h2><button class="modal-close" id="modal-close">${icon('x')}</button></div>
-        <div class="modal-body">
-          <div class="map-placeholder">
-            <img class="map-bg" src="assets/map.svg" alt="">
-            ${routesHtml}
-            ${stopsWithPos.map(s => `<div class="map-pin" style="left:${s.x}%;top:${s.y}%;" title="${esc(s.address)}"><span>${s.idx}</span></div>`).join('')}
-          </div>
-          ${stopsWithPos.length >= 2 ? `
-          <div class="map-legend">
-            <span class="map-legend-item"><span class="map-legend-line main"></span> Trajet proposé</span>
-            <span class="map-legend-item"><span class="map-legend-line alt"></span> Trajet alternatif</span>
-          </div>` : ''}
-          <p class="helper-text" style="margin-top:10px;">Aperçu simplifié — l'intégration carte réelle sera branchée dans une prochaine itération.</p>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-outline btn-block" id="modal-cancel">Fermer</button>
-        </div>
-      </div>
-    </div>`;
+    <div class="map-placeholder">
+      <img class="map-bg" src="assets/map.svg" alt="">
+      ${routesHtml}
+      ${stopsWithPos.map(s => `<div class="map-pin" style="left:${s.x}%;top:${s.y}%;" title="${esc(s.address)}"><span>${s.idx}</span></div>`).join('')}
+    </div>
+    ${stopsWithPos.length >= 2 ? `
+    <div class="map-legend">
+      <span class="map-legend-item"><span class="map-legend-line main"></span> Trajet proposé</span>
+      <span class="map-legend-item"><span class="map-legend-line alt"></span> Trajet alternatif</span>
+    </div>` : ''}
+    <p class="helper-text" style="margin-top:10px;">Aperçu simplifié — l'intégration carte réelle sera branchée dans une prochaine itération.</p>
+
+    <button class="btn btn-outline btn-block" id="btn-optimize-map" style="margin-top:16px;" ${draft.stops.filter(s => s.type === 'property').length < 2 ? 'disabled' : ''}>Optimiser le tour</button>
+
+    <p class="section-label" style="margin-top:20px;">Réordonner les arrêts :</p>
+    <div>${stopsHtml}</div>`;
 }
 
 function renderEditStopModal() {
@@ -1185,7 +1212,8 @@ function bindEvents() {
 
   const backBtn = document.getElementById('mobile-back-btn');
   if (backBtn) backBtn.onclick = () => {
-    if (state.screen === 'contact' || state.screen === 'builder') { state.screen = 'list'; state.draft = null; }
+    if (state.screen === 'map') { state.screen = 'builder'; }
+    else if (state.screen === 'contact' || state.screen === 'builder') { state.screen = 'list'; state.draft = null; }
     else { state.screen = 'menu'; }
     render();
   };
@@ -1193,6 +1221,7 @@ function bindEvents() {
   if (state.screen === 'list') bindListEvents();
   if (state.screen === 'contact') bindContactEvents();
   if (state.screen === 'builder') bindBuilderEvents();
+  if (state.screen === 'map') bindMapEvents();
   bindModalEvents();
 }
 
@@ -1342,19 +1371,10 @@ function bindBuilderEvents() {
   if (addBtn1) addBtn1.onclick = openDestModal;
 
   const optimizeBtn = document.getElementById('btn-optimize');
-  if (optimizeBtn) optimizeBtn.onclick = () => {
-    const pauses = state.draft.stops.filter(s => s.type === 'pause');
-    const props = state.draft.stops.filter(s => s.type === 'property')
-      .slice()
-      .sort((a, b) => a.address.localeCompare(b.address));
-    state.draft.stops = [...props, ...pauses];
-    markDirtyIfSent();
-    render();
-    showToast('Tour optimisé selon la distance estimée.', 'success');
-  };
+  if (optimizeBtn) optimizeBtn.onclick = optimizeDraftStops;
 
   const mapBtn = document.getElementById('btn-show-map');
-  if (mapBtn) mapBtn.onclick = () => { state.modal = { type: 'map' }; render(); };
+  if (mapBtn) mapBtn.onclick = () => { state.screen = 'map'; render(); };
 
   // Editing a property stop's own pencil reopens the "Demande de visite" form
   // pre-filled, so the requested time and message can be adjusted.
@@ -1442,6 +1462,13 @@ function bindBuilderEvents() {
 
   const deleteBtn = document.getElementById('btn-delete-tour');
   if (deleteBtn) deleteBtn.onclick = () => { state.modal = { type: 'confirmDeleteTour' }; render(); };
+
+  bindDragAndDrop();
+}
+
+function bindMapEvents() {
+  const optimizeBtn = document.getElementById('btn-optimize-map');
+  if (optimizeBtn) optimizeBtn.onclick = optimizeDraftStops;
 
   bindDragAndDrop();
 }
