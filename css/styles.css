@@ -272,7 +272,7 @@ a { color: inherit; text-decoration: none; }
 }
 .select-icon-btn.add { background: var(--bleu-action-10); color: var(--bleu-secondaire); }
 .select-icon-btn.help { background: var(--neutre-surface); color: var(--texte-secondaire); }
-.select-icon-btn.remove { background: var(--rouge-10); color: var(--rouge-principal); }
+.select-icon-btn.remove { background: var(--neutre-surface); color: var(--texte-secondaire); }
 .select-icon-btn svg { width: 15px; height: 15px; }
 
 /* ---------- Cards / Panels ---------- */
