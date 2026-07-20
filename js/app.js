@@ -35,6 +35,7 @@ const ICONS = {
   logout: `<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`,
   cart: `<circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="18" cy="20" r="1.4" fill="currentColor"/><path d="M2 3h2l2.6 12.6a2 2 0 002 1.6h8.9a2 2 0 002-1.6L21 7H6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`,
   flag: `<path d="M6 3v18M6 4h11l-2.5 4L17 12H6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`,
+  sync: `<path d="M3 12a9 9 0 0115.3-6.4M21 12a9 9 0 01-15.3 6.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M18.6 3.6v4.2h-4.2M5.4 20.4v-4.2h4.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`,
 };
 const icon = (name, cls = '') => {
   const def = ICONS[name];
@@ -681,7 +682,7 @@ function renderFooterActions(propertyCount) {
 
   const gcalBtn = `
     <button class="btn btn-outline" id="btn-gcal" ${propertyCount === 0 ? 'disabled' : ''}>
-      ${icon('calendar')} Ajouter à mon calendrier Google
+      ${icon('sync')} Synchroniser avec mon calendrier
     </button>`;
 
   if (isSent && state.dirty) {
