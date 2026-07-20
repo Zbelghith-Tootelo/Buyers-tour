@@ -463,7 +463,7 @@ function renderContactScreen() {
   if (selected) {
     searchBlock = `
       <div class="field">
-        <label class="field-label">Ajouter un contact :</label>
+        <label class="field-label">Sélectionnez un contact :</label>
         <div class="buyer-chip">
           <input class="input" value="${esc(selected.prenom + ' ' + selected.nom)}" readonly>
           <div class="input-actions">
@@ -475,7 +475,7 @@ function renderContactScreen() {
   } else {
     searchBlock = `
       <div class="field">
-        <label class="field-label">Ajouter un contact :</label>
+        <label class="field-label">Sélectionnez un contact :</label>
         <div class="search-bar" style="margin-bottom:10px;">
           <input type="text" class="input" id="contact-search" placeholder="Chercher un acheteur..." value="${esc(state.contactSearch)}">
           ${icon('search')}
