@@ -511,7 +511,7 @@ function renderBuyerForm() {
   const f = state.buyerFormDraft || { prenom: '', nom: '', emails: [''], tels: [''] };
   const saved = !!state.contactSelectedBuyer && state.showBuyerForm === 'saved';
   return `
-    <div class="panel" style="padding:16px;margin:0 0 20px;border-style:dashed;">
+    <div class="panel" style="padding:16px;margin:0 0 20px;">
       <div class="panel-header" id="toggle-buyer-form-panel">
         <h3>Ajouter un acheteur</h3>
         ${saved ? `<span class="status-check">${icon('check')}</span>` : icon('chevronUp')}
