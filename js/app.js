@@ -36,6 +36,7 @@ const ICONS = {
   cart: `<circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="18" cy="20" r="1.4" fill="currentColor"/><path d="M2 3h2l2.6 12.6a2 2 0 002 1.6h8.9a2 2 0 002-1.6L21 7H6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`,
   flag: `<path d="M6 3v18M6 4h11l-2.5 4L17 12H6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`,
   sync: `<path d="M3 12a9 9 0 0115.3-6.4M21 12a9 9 0 01-15.3 6.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M18.6 3.6v4.2h-4.2M5.4 20.4v-4.2h4.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`,
+  star: { viewBox: '0 0 27 26', content: `<path d="M13.1016 0.5C13.8575 0.5 14.5467 0.933553 14.873 1.61523L17.7061 7.49512L24.0322 8.4375L24.0332 8.43848C24.7731 8.55044 25.3802 9.07198 25.6123 9.78027C25.8454 10.4919 25.6556 11.2766 25.1279 11.8027L20.5322 16.3887L21.623 22.873V22.875C21.7455 23.6167 21.4391 24.3637 20.834 24.8076C20.222 25.2564 19.4148 25.3039 18.7539 24.9521L18.752 24.9502L13.1064 21.9092L7.46094 24.9502L7.45898 24.9521C6.79541 25.3053 5.99013 25.2494 5.38184 24.8096C4.77244 24.3687 4.46771 23.6146 4.58984 22.875V22.874L5.6748 16.3887L1.08008 11.8027C0.550316 11.2744 0.369538 10.4904 0.594727 9.78418C0.822466 9.07009 1.43758 8.55008 2.1748 8.43848L2.17578 8.4375L8.49707 7.49512L11.3311 1.61523L11.332 1.61426C11.6616 0.936913 12.3428 0.500156 13.1016 0.5Z" stroke="currentColor"/>` },
 };
 const icon = (name, cls = '') => {
   const def = ICONS[name];
@@ -644,12 +645,12 @@ function renderBuilderScreen() {
           </div>
           <div class="stop-body">
             <p class="stop-address">${esc(stop.address)}</p>
-            <p class="stop-meta">Heure de visite : ${minutesToLabel(start)} – ${minutesToLabel(start + stop.duration)} <span class="dot">•</span> ${statusHtml}${stop.visited ? ` <span class="dot">•</span> <span class="status-visited">${icon('check')} Visité</span>` : ''}</p>
+            <p class="stop-meta">Heure de visite : ${minutesToLabel(start)} – ${minutesToLabel(start + stop.duration)} <span class="dot">•</span> ${statusHtml}${stop.visited ? ` <span class="dot">•</span> <span class="status-visited">${icon('star')} Visité</span>` : ''}</p>
           </div>
           <div class="stop-actions">
             <button class="btn-icon" data-edit-stop="${stop.id}">${icon('pencil')}</button>
             <button class="btn-icon danger" data-remove-stop="${stop.id}">${icon('trash')}</button>
-            <button class="btn-icon toggle-visited ${stop.visited ? 'active' : ''}" data-toggle-visited="${stop.id}" aria-pressed="${stop.visited ? 'true' : 'false'}" title="${stop.visited ? 'Marquer comme non visité' : 'Marquer la visite comme effectuée'}">${icon('check')}</button>
+            <button class="btn-icon toggle-visited ${stop.visited ? 'active' : ''}" data-toggle-visited="${stop.id}" aria-pressed="${stop.visited ? 'true' : 'false'}" title="${stop.visited ? 'Marquer comme non visité' : 'Marquer la visite comme effectuée'}">${icon('star')}</button>
           </div>
         </div>`;
     }
