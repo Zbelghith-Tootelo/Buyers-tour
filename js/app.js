@@ -245,12 +245,19 @@ const state = {
   destModalPrefillAddress: '',
   dragStopId: null,
   dirty: false,             // unsaved edits on a tour that was already sent
+  reportDraft: null,        // { [stopId]: { rating, comment } } while editing a compte rendu
 };
 
 // The tours list holds both sent tours (sentAt set) and saved drafts (sentAt null).
 // The save/update flow only applies to tours whose requests were already sent.
 function currentTour() {
   return state.editingTourId ? state.tours.find(t => t.id === state.editingTourId) : null;
+}
+
+// A tour moves to "Passé" once every property stop has been marked Visité.
+function tourIsCompleted(t) {
+  const props = t.stops.filter(s => s.type === 'property');
+  return !!t.sentAt && props.length > 0 && props.every(s => s.visited);
 }
 
 function markDirtyIfSent() {
@@ -379,6 +386,7 @@ function render() {
   else if (state.screen === 'contact') { setTopbarTitle('Créer un tour de visites'); main.innerHTML = renderContactScreen(); }
   else if (state.screen === 'builder') { setTopbarTitle('Créer un tour de visites'); main.innerHTML = renderBuilderScreen(); }
   else if (state.screen === 'map') { setTopbarTitle('Carte du tour'); main.innerHTML = renderMapScreen(); }
+  else if (state.screen === 'report') { setTopbarTitle('Compte rendu de visite'); main.innerHTML = renderReportScreen(); }
   else if (state.screen === 'menu') { setTopbarTitle('Menu'); main.innerHTML = renderMenuScreen(); }
   document.body.dataset.screen = state.screen;
   renderModal();
@@ -406,7 +414,7 @@ function renderMenuScreen() {
 
 function renderListScreen() {
   const q = state.listSearch.trim().toLowerCase();
-  let tours = state.tours.filter(t => (state.listTab === 'upcoming' ? !t.completed : t.completed));
+  let tours = state.tours.filter(t => (state.listTab === 'upcoming' ? !tourIsCompleted(t) : tourIsCompleted(t)));
   if (q) {
     tours = tours.filter(t => {
       const b = state.buyers.find(b => b.id === t.buyerId);
@@ -1130,6 +1138,40 @@ function renderMapScreen() {
     <div>${stopsHtml}</div>`;
 }
 
+function renderReportScreen() {
+  const t = state.tours.find(x => x.id === state.editingTourId);
+  const buyer = state.buyers.find(b => b.id === t.buyerId);
+  const rows = computeSchedule({ date: t.date, time: t.time, stops: t.stops });
+  const visitedRows = rows.filter(({ stop }) => stop.type === 'property' && stop.visited);
+
+  const cardsHtml = visitedRows.map(({ stop, start }) => {
+    const draft = state.reportDraft[stop.id];
+    return `
+      <div class="report-card">
+        <p class="stop-address">${esc(stop.address)}</p>
+        <p class="stop-meta">Heure de visite : ${minutesToLabel(start)} – ${minutesToLabel(start + stop.duration)}</p>
+        <div class="field" style="margin-top:14px;">
+          <label class="field-label">Votre évaluation</label>
+          <div class="rating-stars">
+            ${[1, 2, 3, 4, 5].map(n => `
+              <button type="button" class="rating-star ${n <= draft.rating ? 'active' : ''}" data-rate-stop="${stop.id}" data-value="${n}" aria-label="${n} étoile${n > 1 ? 's' : ''}">${icon('star')}</button>
+            `).join('')}
+          </div>
+        </div>
+        <div class="field" style="margin-top:14px;margin-bottom:4px;">
+          <label class="field-label">Notes internes</label>
+          <textarea class="input report-comment" data-comment-stop="${stop.id}" maxlength="750" rows="3" placeholder="Vos observations sur cette visite...">${esc(draft.comment)}</textarea>
+          <p class="vr-charcount">Caractères : <span id="report-charcount-${stop.id}">${draft.comment.length}</span> / 750</p>
+        </div>
+      </div>`;
+  }).join('');
+
+  return `
+    <p class="helper-text" style="margin:0 0 20px;">${esc(buyer.prenom + ' ' + buyer.nom)} — ${formatDateLong(t.date)} à ${t.time.replace(':', 'h')}</p>
+    ${cardsHtml}
+    <button class="btn btn-primary btn-block" id="btn-save-report" style="margin-top:8px;">Enregistrer le compte rendu</button>`;
+}
+
 function renderEditStopModal() {
   const stop = state.draft.stops.find(s => s.id === state.modal.stopId);
   if (!stop) return '';
@@ -1213,6 +1255,7 @@ function bindEvents() {
 
   const goBack = () => {
     if (state.screen === 'map') { state.screen = 'builder'; }
+    else if (state.screen === 'report') { state.screen = 'list'; state.listTab = 'past'; state.reportDraft = null; }
     else if (state.screen === 'contact' || state.screen === 'builder') { state.screen = 'list'; state.draft = null; }
     else { state.screen = 'menu'; }
     render();
@@ -1226,6 +1269,7 @@ function bindEvents() {
   if (state.screen === 'contact') bindContactEvents();
   if (state.screen === 'builder') bindBuilderEvents();
   if (state.screen === 'map') bindMapEvents();
+  if (state.screen === 'report') bindReportEvents();
   bindModalEvents();
 }
 
@@ -1240,8 +1284,17 @@ function bindListEvents() {
   document.querySelectorAll('[data-open-tour]').forEach(el => {
     el.onclick = () => {
       const t = state.tours.find(x => x.id === el.getAttribute('data-open-tour'));
-      const buyer = state.buyers.find(b => b.id === t.buyerId);
       state.editingTourId = t.id;
+      if (tourIsCompleted(t)) {
+        state.reportDraft = {};
+        t.stops.filter(s => s.type === 'property' && s.visited).forEach(s => {
+          state.reportDraft[s.id] = { rating: s.report?.rating || 0, comment: s.report?.comment || '' };
+        });
+        state.screen = 'report';
+        render();
+        return;
+      }
+      const buyer = state.buyers.find(b => b.id === t.buyerId);
       state.draft = { buyer, date: t.date, time: t.time, stops: JSON.parse(JSON.stringify(t.stops)) };
       state.screen = 'builder';
       render();
@@ -1475,6 +1528,37 @@ function bindMapEvents() {
   if (optimizeBtn) optimizeBtn.onclick = optimizeDraftStops;
 
   bindDragAndDrop();
+}
+
+function bindReportEvents() {
+  document.querySelectorAll('[data-rate-stop]').forEach(el => {
+    el.onclick = () => {
+      state.reportDraft[el.getAttribute('data-rate-stop')].rating = +el.getAttribute('data-value');
+      render();
+    };
+  });
+
+  document.querySelectorAll('[data-comment-stop]').forEach(el => {
+    el.oninput = () => {
+      const stopId = el.getAttribute('data-comment-stop');
+      state.reportDraft[stopId].comment = el.value;
+      document.getElementById(`report-charcount-${stopId}`).textContent = el.value.length;
+    };
+  });
+
+  const saveBtn = document.getElementById('btn-save-report');
+  if (saveBtn) saveBtn.onclick = () => {
+    const t = state.tours.find(x => x.id === state.editingTourId);
+    Object.keys(state.reportDraft).forEach(stopId => {
+      const stop = t.stops.find(s => s.id === stopId);
+      if (stop) stop.report = { ...state.reportDraft[stopId] };
+    });
+    state.reportDraft = null;
+    state.screen = 'list';
+    state.listTab = 'past';
+    render();
+    showToast('Compte rendu de visite enregistré.', 'success');
+  };
 }
 
 function bindDragAndDrop() {

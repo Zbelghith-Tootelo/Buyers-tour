@@ -164,7 +164,7 @@ a { color: inherit; text-decoration: none; }
 
 .topbar-back { display: none; background: none; border: none; padding: 0; cursor: pointer; color: var(--texte-principal); flex-shrink: 0; }
 .topbar-back svg { width: 22px; height: 22px; display: block; }
-body[data-screen="map"] .topbar-back { display: inline-flex; }
+body[data-screen="map"] .topbar-back, body[data-screen="report"] .topbar-back { display: inline-flex; }
 
 .user-info { display: flex; align-items: center; gap: 8px; }
 .user-avatar {
@@ -537,6 +537,23 @@ body[data-screen="map"] .topbar-back { display: inline-flex; }
 
 .vr-comment { height: auto; min-height: 84px; padding: 12px 14px; resize: vertical; font-family: inherit; }
 .vr-charcount { font-size: 12.5px; color: var(--texte-secondaire); text-align: right; margin: 6px 0 0; }
+
+/* ---------- Compte rendu de visite ---------- */
+
+.report-card {
+  background: var(--blanc);
+  border: 1px solid var(--bordures);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.report-comment { height: auto; min-height: 72px; padding: 12px 14px; resize: vertical; font-family: inherit; }
+
+.rating-stars { display: flex; gap: 6px; }
+.rating-star { background: none; border: none; padding: 2px; cursor: pointer; color: var(--bordures); }
+.rating-star svg { width: 24px; height: 24px; display: block; }
+.rating-star.active { color: var(--attention); }
+.rating-star.active svg path { fill: currentColor; }
 
 /* ---------- Toast (Figma 4337:3707: banner shown at the top of the page) ---------- */
 
