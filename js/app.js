@@ -142,6 +142,10 @@ const MLS_POOL = [
   { mls: '18235410', address: '88 Rue des Érables, Longueuil, QC J4K 3C7' },
 ];
 function courtierFor(mls) { return COURTIERS_INSCRIPTEURS[hashStr(mls) % COURTIERS_INSCRIPTEURS.length]; }
+function courtierPhoneFor(courtier) {
+  const h = hashStr(courtier);
+  return `(${514 + (h % 3) * 100}) ${100 + (h % 900)}-${1000 + ((h >>> 3) % 9000)}`;
+}
 function travelFor(a, b) { return 8 + (hashStr(a + '|' + b) % 13); }
 
 // Properties already selected in MLS Matrix and sent to the "Cart" of this app
@@ -245,7 +249,8 @@ const state = {
   destModalPrefillAddress: '',
   dragStopId: null,
   dirty: false,             // unsaved edits on a tour that was already sent
-  reportDraft: null,        // { [stopId]: { rating, comment } } while editing a compte rendu
+  reportStopId: null,       // stop being reported on while state.screen === 'report'
+  reportDraft: null,        // { interet, prix, interieur, exterieur, offre, comment, callbackNumbers } for that stop
 };
 
 // The tours list holds both sent tours (sentAt set) and saved drafts (sentAt null).
@@ -658,7 +663,7 @@ function renderBuilderScreen() {
           <div class="stop-actions">
             <button class="btn-icon" data-edit-stop="${stop.id}">${icon('pencil')}</button>
             <button class="btn-icon danger" data-remove-stop="${stop.id}">${icon('trash')}</button>
-            <button class="btn-icon toggle-visited ${stop.visited ? 'active' : ''}" data-toggle-visited="${stop.id}" aria-pressed="${stop.visited ? 'true' : 'false'}" title="${stop.visited ? 'Marquer comme non visité' : 'Marquer la visite comme effectuée'}">${icon('star')}</button>
+            <button class="btn-icon toggle-visited ${stop.visited ? 'active' : ''}" data-toggle-visited="${stop.id}" title="${stop.visited ? 'Voir le compte rendu de visite' : 'Faire le compte rendu de visite'}">${icon('star')}</button>
           </div>
         </div>`;
     }
@@ -1138,38 +1143,98 @@ function renderMapScreen() {
     <div>${stopsHtml}</div>`;
 }
 
-function renderReportScreen() {
-  const t = state.tours.find(x => x.id === state.editingTourId);
-  const buyer = state.buyers.find(b => b.id === t.buyerId);
-  const rows = computeSchedule({ date: t.date, time: t.time, stops: t.stops });
-  const visitedRows = rows.filter(({ stop }) => stop.type === 'property' && stop.visited);
+function ratingStarsHtml(group, value) {
+  return `
+    <div class="rating-stars" data-rating-group="${group}">
+      ${[1, 2, 3, 4, 5].map(n => `
+        <button type="button" class="rating-star ${n <= value ? 'active' : ''}" data-rate="${group}" data-value="${n}" aria-label="${n} étoile${n > 1 ? 's' : ''}">${icon('star')}</button>
+      `).join('')}
+    </div>`;
+}
 
-  const cardsHtml = visitedRows.map(({ stop, start }) => {
-    const draft = state.reportDraft[stop.id];
-    return `
-      <div class="report-card">
-        <p class="stop-address">${esc(stop.address)}</p>
-        <p class="stop-meta">Heure de visite : ${minutesToLabel(start)} – ${minutesToLabel(start + stop.duration)}</p>
-        <div class="field" style="margin-top:14px;">
-          <label class="field-label">Votre évaluation</label>
-          <div class="rating-stars">
-            ${[1, 2, 3, 4, 5].map(n => `
-              <button type="button" class="rating-star ${n <= draft.rating ? 'active' : ''}" data-rate-stop="${stop.id}" data-value="${n}" aria-label="${n} étoile${n > 1 ? 's' : ''}">${icon('star')}</button>
-            `).join('')}
-          </div>
-        </div>
-        <div class="field" style="margin-top:14px;margin-bottom:4px;">
-          <label class="field-label">Notes internes</label>
-          <textarea class="input report-comment" data-comment-stop="${stop.id}" maxlength="750" rows="3" placeholder="Vos observations sur cette visite...">${esc(draft.comment)}</textarea>
-          <p class="vr-charcount">Caractères : <span id="report-charcount-${stop.id}">${draft.comment.length}</span> / 750</p>
-        </div>
-      </div>`;
-  }).join('');
+function optionChipsHtml(group, options, value) {
+  return `
+    <div class="option-chip-row" data-option-group="${group}">
+      ${options.map(([val, label]) => `
+        <button type="button" class="option-chip ${value === val ? 'selected' : ''}" data-option="${group}" data-value="${val}">
+          <span class="option-radio"></span> ${esc(label)}
+        </button>
+      `).join('')}
+    </div>`;
+}
+
+function renderReportScreen() {
+  const stop = state.draft.stops.find(s => s.id === state.reportStopId);
+  const draft = state.reportDraft;
+  const courtier = stop.courtier;
+  const initials = courtier.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
   return `
-    <p class="helper-text" style="margin:0 0 20px;">${esc(buyer.prenom + ' ' + buyer.nom)} — ${formatDateLong(t.date)} à ${t.time.replace(':', 'h')}</p>
-    ${cardsHtml}
-    <button class="btn btn-primary btn-block" id="btn-save-report" style="margin-top:8px;">Enregistrer le compte rendu</button>`;
+    <div class="vr-broker">
+      <span class="vr-broker-avatar">${esc(initials)}</span>
+      <div>
+        <p class="vr-broker-name">${esc(courtier)}</p>
+        <p class="vr-broker-agency">Courtier inscripteur, Immocontact</p>
+      </div>
+    </div>
+    <div class="vr-property">
+      <img class="result-thumb" src="${thumbFor(stop.mls, stop.address)}" alt="">
+      <div>
+        <p class="vr-property-address" style="margin:0;">${esc(stop.address)}</p>
+        <p class="stop-meta" style="margin:2px 0 0;">#${esc(stop.mls)}</p>
+      </div>
+    </div>
+
+    <div class="field" style="margin-top:16px;">
+      <label class="field-label" style="font-weight:700;">Intérêt global</label>
+      ${ratingStarsHtml('interet', draft.interet)}
+    </div>
+
+    <p class="section-label" style="margin-top:16px;">Prix</p>
+    ${optionChipsHtml('prix', [
+      ['tres_satisfaisant', 'Prix très satisfaisant'],
+      ['satisfaisant', 'Prix satisfaisant'],
+      ['trop_eleve', 'Prix trop élevé'],
+    ], draft.prix)}
+
+    <p class="section-label" style="margin-top:22px;font-weight:700;">Rapport sur la propriété</p>
+
+    <div class="field" style="margin-top:10px;">
+      <label class="field-label" style="font-weight:700;">Intérieur</label>
+      ${ratingStarsHtml('interieur', draft.interieur)}
+    </div>
+    <div class="field" style="margin-top:14px;">
+      <label class="field-label" style="font-weight:700;">Extérieur</label>
+      ${ratingStarsHtml('exterieur', draft.exterieur)}
+    </div>
+
+    <p class="section-label" style="margin-top:16px;">L'acheteur va faire une offre</p>
+    ${optionChipsHtml('offre', [
+      ['oui', 'Oui'],
+      ['peut_etre', 'Peut-être'],
+      ['non', 'Non'],
+    ], draft.offre)}
+
+    <div class="field" style="margin-top:16px;">
+      <label class="field-label">Commentaires :</label>
+      <textarea class="input report-comment" id="report-comment" maxlength="750" rows="3" placeholder="Veuillez entrer votre message.">${esc(draft.comment)}</textarea>
+    </div>
+
+    <div class="field" style="margin-top:16px;">
+      <label class="field-label">Numéro de rappel</label>
+      <div class="callback-chips">
+        ${draft.callbackNumbers.map((num, i) => `
+          <span class="callback-chip">${esc(num)} <button type="button" data-remove-callback="${i}" aria-label="Retirer ce numéro">${icon('x')}</button></span>
+        `).join('')}
+      </div>
+    </div>
+
+    <div style="max-width:300px;margin-top:20px;">
+      <button class="btn btn-primary btn-block" id="btn-send-report">Envoyer</button>
+      <button class="btn btn-outline btn-block" id="btn-send-report-later" style="margin-top:15px;">Envoyer plus tard ...</button>
+    </div>
+
+    <p class="helper-text" style="margin-top:20px;">Toutes ces informations seront partagées avec les vendeurs.</p>`;
 }
 
 function renderEditStopModal() {
@@ -1255,7 +1320,7 @@ function bindEvents() {
 
   const goBack = () => {
     if (state.screen === 'map') { state.screen = 'builder'; }
-    else if (state.screen === 'report') { state.screen = 'list'; state.listTab = 'past'; state.reportDraft = null; }
+    else if (state.screen === 'report') { state.screen = 'builder'; state.reportStopId = null; state.reportDraft = null; }
     else if (state.screen === 'contact' || state.screen === 'builder') { state.screen = 'list'; state.draft = null; }
     else { state.screen = 'menu'; }
     render();
@@ -1285,15 +1350,6 @@ function bindListEvents() {
     el.onclick = () => {
       const t = state.tours.find(x => x.id === el.getAttribute('data-open-tour'));
       state.editingTourId = t.id;
-      if (tourIsCompleted(t)) {
-        state.reportDraft = {};
-        t.stops.filter(s => s.type === 'property' && s.visited).forEach(s => {
-          state.reportDraft[s.id] = { rating: s.report?.rating || 0, comment: s.report?.comment || '' };
-        });
-        state.screen = 'report';
-        render();
-        return;
-      }
       const buyer = state.buyers.find(b => b.id === t.buyerId);
       state.draft = { buyer, date: t.date, time: t.time, stops: JSON.parse(JSON.stringify(t.stops)) };
       state.screen = 'builder';
@@ -1474,8 +1530,17 @@ function bindBuilderEvents() {
     el.onclick = () => {
       const stop = state.draft.stops.find(s => s.id === el.getAttribute('data-toggle-visited'));
       if (!stop) return;
-      stop.visited = !stop.visited;
-      markDirtyIfSent();
+      state.reportStopId = stop.id;
+      state.reportDraft = {
+        interet: stop.report?.interet || 0,
+        prix: stop.report?.prix || null,
+        interieur: stop.report?.interieur || 0,
+        exterieur: stop.report?.exterieur || 0,
+        offre: stop.report?.offre || null,
+        comment: stop.report?.comment || '',
+        callbackNumbers: stop.report?.callbackNumbers || [courtierPhoneFor(stop.courtier)],
+      };
+      state.screen = 'report';
       render();
     };
   });
@@ -1531,34 +1596,45 @@ function bindMapEvents() {
 }
 
 function bindReportEvents() {
-  document.querySelectorAll('[data-rate-stop]').forEach(el => {
+  document.querySelectorAll('[data-rate]').forEach(el => {
     el.onclick = () => {
-      state.reportDraft[el.getAttribute('data-rate-stop')].rating = +el.getAttribute('data-value');
+      state.reportDraft[el.getAttribute('data-rate')] = +el.getAttribute('data-value');
       render();
     };
   });
 
-  document.querySelectorAll('[data-comment-stop]').forEach(el => {
-    el.oninput = () => {
-      const stopId = el.getAttribute('data-comment-stop');
-      state.reportDraft[stopId].comment = el.value;
-      document.getElementById(`report-charcount-${stopId}`).textContent = el.value.length;
+  document.querySelectorAll('[data-option]').forEach(el => {
+    el.onclick = () => {
+      state.reportDraft[el.getAttribute('data-option')] = el.getAttribute('data-value');
+      render();
     };
   });
 
-  const saveBtn = document.getElementById('btn-save-report');
-  if (saveBtn) saveBtn.onclick = () => {
-    const t = state.tours.find(x => x.id === state.editingTourId);
-    Object.keys(state.reportDraft).forEach(stopId => {
-      const stop = t.stops.find(s => s.id === stopId);
-      if (stop) stop.report = { ...state.reportDraft[stopId] };
-    });
+  const comment = document.getElementById('report-comment');
+  if (comment) comment.oninput = () => { state.reportDraft.comment = comment.value; };
+
+  document.querySelectorAll('[data-remove-callback]').forEach(el => {
+    el.onclick = () => {
+      state.reportDraft.callbackNumbers.splice(+el.getAttribute('data-remove-callback'), 1);
+      render();
+    };
+  });
+
+  const finalizeReport = (sent) => {
+    const stop = state.draft.stops.find(s => s.id === state.reportStopId);
+    stop.report = { ...state.reportDraft, sent };
+    stop.visited = true;
+    markDirtyIfSent();
+    state.reportStopId = null;
     state.reportDraft = null;
-    state.screen = 'list';
-    state.listTab = 'past';
+    state.screen = 'builder';
     render();
-    showToast('Compte rendu de visite enregistré.', 'success');
+    showToast(sent ? 'Compte rendu envoyé aux vendeurs.' : 'Compte rendu enregistré, à envoyer plus tard.', 'success');
   };
+  const sendBtn = document.getElementById('btn-send-report');
+  if (sendBtn) sendBtn.onclick = () => finalizeReport(true);
+  const sendLaterBtn = document.getElementById('btn-send-report-later');
+  if (sendLaterBtn) sendLaterBtn.onclick = () => finalizeReport(false);
 }
 
 function bindDragAndDrop() {

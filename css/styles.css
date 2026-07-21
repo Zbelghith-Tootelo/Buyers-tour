@@ -540,13 +540,6 @@ body[data-screen="map"] .topbar-back, body[data-screen="report"] .topbar-back { 
 
 /* ---------- Compte rendu de visite ---------- */
 
-.report-card {
-  background: var(--blanc);
-  border: 1px solid var(--bordures);
-  border-radius: var(--radius-lg);
-  padding: 16px;
-  margin-bottom: 16px;
-}
 .report-comment { height: auto; min-height: 72px; padding: 12px 14px; resize: vertical; font-family: inherit; }
 
 .rating-stars { display: flex; gap: 6px; }
@@ -554,6 +547,27 @@ body[data-screen="map"] .topbar-back, body[data-screen="report"] .topbar-back { 
 .rating-star svg { width: 24px; height: 24px; display: block; }
 .rating-star.active { color: var(--attention); }
 .rating-star.active svg path { fill: currentColor; }
+
+.option-chip-row { display: flex; flex-wrap: wrap; gap: 12px; }
+.option-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--lumiere-principale); border: none; border-radius: var(--radius-md);
+  padding: 10px; font-size: 14px; font-weight: 500; color: var(--texte-principal); cursor: pointer;
+}
+.option-radio { width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid var(--bordures); flex-shrink: 0; position: relative; background: var(--blanc); }
+.option-chip.selected .option-radio { border-color: var(--bleu-secondaire); }
+.option-chip.selected .option-radio::after {
+  content: ''; position: absolute; inset: 3px; border-radius: 50%; background: var(--bleu-secondaire);
+}
+
+.callback-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.callback-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--bleu-principal); color: var(--blanc); border-radius: var(--radius-sm);
+  padding: 6px 6px 6px 12px; font-size: 14px; font-weight: 500;
+}
+.callback-chip button { background: none; border: none; color: var(--blanc); cursor: pointer; display: flex; padding: 4px; }
+.callback-chip button svg { width: 10px; height: 10px; }
 
 /* ---------- Toast (Figma 4337:3707: banner shown at the top of the page) ---------- */
 
